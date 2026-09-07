@@ -4,7 +4,7 @@
 
 <head>
 
-```
+
 <meta charset="UTF-8">
 
 <title>WorkTracker</title>
@@ -257,7 +257,8 @@
 // API 주소
 // ========================================
 
-const API_BASE = "http://192.168.1.7:8000";
+const SUPABASE_URL = "https://hmaicgmzobzolwydkysc.supabase.co";
+const SUPABASE_KEY = "sb_publishable_N51dEQq1SRYJrKrgH79zOA_ZnnQ7juR";
 
 
 // ========================================
@@ -274,13 +275,20 @@ let selectedDate = null;
 async function fetchAPI(endpoint) {
 
     const response = await fetch(
-        API_BASE + endpoint
+        SUPABASE_URL + endpoint,
+        {
+            headers: {
+                "apikey": SUPABASE_KEY,
+                "Authorization":
+                    `Bearer ${SUPABASE_KEY}`
+            }
+        }
     );
 
     if (!response.ok) {
 
         throw new Error(
-            `API 오류: ${response.status}`
+            `Supabase API 오류: ${response.status}`
         );
 
     }
@@ -436,6 +444,120 @@ function getLevel(seconds) {
 // ========================================
 
 async function loadData() {
+
+    try {
+
+        const response = await fetch(
+            SUPABASE_URL +
+            "/rest/v1/work_time?select=date,hour,seconds",
+            {
+                headers: {
+                    "apikey": SUPABASE_KEY,
+                    "Authorization":
+                        `Bearer ${SUPABASE_KEY}`
+                }
+            }
+        );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Supabase 오류: ${response.status}`
+            );
+
+        }
+
+
+        const rows =
+            await response.json();
+
+
+        // ----------------------------
+        // 날짜별 합계
+        // ----------------------------
+
+        const daily = {};
+
+
+        let totalSeconds = 0;
+
+
+        for (const row of rows) {
+
+            const date = row.date;
+            const seconds =
+                Number(row.seconds);
+
+
+            daily[date] =
+                (daily[date] || 0)
+                + seconds;
+
+
+            totalSeconds += seconds;
+
+        }
+
+
+        // ----------------------------
+        // 전체 작업시간
+        // ----------------------------
+
+        document.getElementById(
+            "summary"
+        ).textContent =
+            "전체 작업시간: " +
+            formatTime(
+                totalSeconds
+            );
+
+
+        // ----------------------------
+        // 365일 그래프
+        // ----------------------------
+
+        renderGraph(
+            daily
+        );
+
+
+        // ----------------------------
+        // 오늘
+        // ----------------------------
+
+        if (selectedDate === null) {
+
+            selectedDate =
+                getTodayString();
+
+        }
+
+
+        // ----------------------------
+        // 선택 날짜
+        // ----------------------------
+
+        await loadHourlyData(
+            selectedDate
+        );
+
+
+        console.log(
+            "Supabase 데이터 갱신 완료"
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "데이터 갱신 실패:",
+            error
+        );
+
+    }
+
+
 
     try {
 
@@ -692,6 +814,77 @@ function renderGraph(data) {
 // ========================================
 
 async function loadHourlyData(date) {
+
+    try {
+
+        const response = await fetch(
+            SUPABASE_URL +
+            "/rest/v1/work_time" +
+            "?select=hour,seconds" +
+            "&date=eq." +
+            date +
+            "&order=hour",
+            {
+                headers: {
+                    "apikey": SUPABASE_KEY,
+                    "Authorization":
+                        `Bearer ${SUPABASE_KEY}`
+                }
+            }
+        );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Supabase 오류: ${response.status}`
+            );
+
+        }
+
+
+        const rows =
+            await response.json();
+
+
+        const hours = {};
+
+
+        for (
+            let hour = 0;
+            hour < 24;
+            hour++
+        ) {
+
+            hours[String(hour)] = 0;
+
+        }
+
+
+        for (const row of rows) {
+
+            hours[String(row.hour)] =
+                Number(row.seconds);
+
+        }
+
+
+        renderHourlyData({
+            date: date,
+            hours: hours
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "시간별 데이터를 불러오지 못했습니다.",
+            error
+        );
+
+    }
+
+
 
     try {
 
