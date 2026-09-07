@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>WorkTracker API Test</title>
+
+</head>
+
+
+<body>
+
+<h1>WorkTracker API 테스트</h1>
+
+<pre id="output">데이터 불러오는 중...</pre>
+
+
+<script>
+
+fetch("http://127.0.0.1:8000/api/daily")
+
+    .then(response => response.json())
+
+    .then(data => {
+
+        document.getElementById("output").textContent =
+            JSON.stringify(data, null, 2);
+
+    })
+
+    .catch(error => {
+
+        document.getElementById("output").textContent =
+            "오류: " + error;
+
+    });
+
+</script>
+
+
+</body>
+
+</html>

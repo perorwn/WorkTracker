@@ -1,15 +1,20 @@
+```html
 <!DOCTYPE html>
-
 <html lang="ko">
 
 <head>
 
-
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>WorkTracker</title>
 
 <style>
+
+    * {
+        box-sizing: border-box;
+    }
+
 
     body {
         font-family: Arial, sans-serif;
@@ -20,44 +25,92 @@
 
 
     h1 {
-        margin-bottom: 10px;
+        margin-bottom: 8px;
     }
 
 
-    .summary {
-        margin-bottom: 30px;
-        font-size: 18px;
+    .week-title {
+        margin-bottom: 20px;
+        color: #555;
+        font-size: 16px;
     }
 
 
     /* ========================================
-       365일 그래프
+       주간 그래프
        ======================================== */
 
-    .graph {
-        display: flex;
-        gap: 4px;
-        align-items: flex-start;
+    .week-grid {
+        display: grid;
+
+        grid-template-columns:
+            50px
+            repeat(7, 24px);
+
+        grid-auto-rows: 24px;
+
+        gap: 5px;
+
+        width: max-content;
     }
 
 
-    .week {
+    /* ========================================
+       요일 표시
+       ======================================== */
+
+    .day-header {
+        width: 24px;
+        height: 24px;
+
         display: flex;
-        flex-direction: column;
-        gap: 4px;
+        align-items: center;
+        justify-content: center;
+
+        font-size: 12px;
+        color: #555;
     }
 
 
-    .day {
-        width: 14px;
-        height: 14px;
-        border-radius: 2px;
+    .day-header.today {
+        font-weight: bold;
+        color: #111;
+    }
+
+
+    /* ========================================
+       시간 표시
+       ======================================== */
+
+    .hour-label {
+        width: 50px;
+        height: 24px;
+
+        display: flex;
+        align-items: center;
+
+        font-size: 11px;
+        color: #777;
+    }
+
+
+    /* ========================================
+       작업량 칸
+       ======================================== */
+
+    .work-cell {
+        width: 24px;
+        height: 24px;
+
+        border-radius: 4px;
+
         cursor: pointer;
     }
 
 
-    .day:hover {
+    .work-cell:hover {
         outline: 2px solid #555;
+        outline-offset: 1px;
     }
 
 
@@ -91,124 +144,156 @@
 
 
     /* ========================================
-       날짜 상세
+       설명
+       ======================================== */
+
+    .legend {
+        display: flex;
+        align-items: center;
+
+        gap: 5px;
+
+        margin-top: 20px;
+
+        font-size: 12px;
+        color: #777;
+    }
+
+
+    .legend-cell {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+    }
+
+
+    /* ========================================
+       선택한 시간 정보
        ======================================== */
 
     .detail {
-        margin-top: 40px;
+        margin-top: 35px;
+
         padding-top: 25px;
+
         border-top: 1px solid #ddd;
+
+        max-width: 500px;
     }
 
 
     .detail-title {
-        font-size: 22px;
+        font-size: 20px;
         font-weight: bold;
+
         margin-bottom: 8px;
     }
 
 
-    .detail-total {
-        margin-bottom: 20px;
+    .detail-time {
         color: #555;
+        font-size: 16px;
     }
 
 
     /* ========================================
-       24시간 잔디 그래프
+       모바일
        ======================================== */
 
-    .hour-grid {
-        display: grid;
-        grid-template-columns: repeat(12, 22px);
-        grid-template-rows: repeat(2, 22px);
-        gap: 5px;
-        margin-top: 15px;
-    }
+    @media (max-width: 600px) {
+
+        body {
+            margin: 25px 20px;
+        }
 
 
-    .hour-cell {
-        width: 22px;
-        height: 22px;
-        border-radius: 3px;
-        cursor: pointer;
-    }
+        .week-grid {
+            grid-template-columns:
+                38px
+                repeat(7, 20px);
+
+            grid-auto-rows: 20px;
+
+            gap: 4px;
+        }
 
 
-    .hour-cell:hover {
-        outline: 2px solid #555;
-    }
+        .day-header {
+            width: 20px;
+            height: 20px;
+
+            font-size: 11px;
+        }
 
 
-    /* ========================================
-       시간 표시
-       ======================================== */
+        .hour-label {
+            width: 38px;
+            height: 20px;
 
-    .hour-labels {
-        display: grid;
-        grid-template-columns: repeat(12, 22px);
-        gap: 5px;
-        margin-bottom: 5px;
-        font-size: 11px;
-        color: #777;
-    }
+            font-size: 10px;
+        }
 
 
-    .hour-label {
-        text-align: center;
-    }
+        .work-cell {
+            width: 20px;
+            height: 20px;
 
+            border-radius: 3px;
+        }
 
-    .hour-row {
-        display: flex;
-        gap: 5px;
-        margin-bottom: 5px;
-    }
-
-
-    .hour-name {
-        font-size: 12px;
-        color: #777;
-        width: 25px;
-        display: flex;
-        align-items: center;
     }
 
 </style>
-```
 
 </head>
 
+
 <body>
 
-```
+
 <h1>WorkTracker</h1>
 
 
-<!-- ========================================
-     전체 작업시간
-     ======================================== -->
-
 <div
-    class="summary"
-    id="summary"
+    class="week-title"
+    id="week-title"
 >
-    전체 작업시간: 0초
+    이번 주
 </div>
 
 
 <!-- ========================================
-     365일 그래프
+     7열 × 24행 주간 잔디 그래프
      ======================================== -->
 
 <div
-    class="graph"
-    id="graph"
+    class="week-grid"
+    id="week-grid"
 ></div>
 
 
 <!-- ========================================
-     날짜 상세
+     범례
+     ======================================== -->
+
+<div class="legend">
+
+    <span>적음</span>
+
+    <div class="legend-cell level-0"></div>
+    <div class="legend-cell level-1"></div>
+    <div class="legend-cell level-2"></div>
+    <div class="legend-cell level-3"></div>
+    <div class="legend-cell level-4"></div>
+    <div class="legend-cell level-5"></div>
+
+    <span>많음</span>
+
+</div>
+
+
+<!-- ========================================
+     선택한 시간
      ======================================== -->
 
 <div
@@ -220,52 +305,32 @@
         class="detail-title"
         id="detail-title"
     >
-        날짜를 선택해주세요.
+        시간대를 선택해주세요.
     </div>
 
 
     <div
-        class="detail-total"
-        id="detail-total"
+        class="detail-time"
+        id="detail-time"
     >
-        총 작업시간: 0초
-    </div>
-
-
-    <div
-        id="hour-section"
-    >
-
-        <div>
-            시간별 작업량
-        </div>
-
-
-        <div
-            class="hour-grid"
-            id="hour-chart"
-        ></div>
-
+        작업시간: -
     </div>
 
 </div>
-```
+
 
 <script>
 
-// ========================================
-// API 주소
-// ========================================
-
-const SUPABASE_URL = "https://hmaicgmzobzolwydkysc.supabase.co";
-const SUPABASE_KEY = "sb_publishable_N51dEQq1SRYJrKrgH79zOA_ZnnQ7juR";
-
 
 // ========================================
-// 현재 선택된 날짜
+// Supabase
 // ========================================
 
-let selectedDate = null;
+const SUPABASE_URL =
+    "https://hmaicgmzobzolwydkysc.supabase.co";
+
+const SUPABASE_KEY =
+    "sb_publishable_N51dEQq1SRYJrKrgH79zOA_ZnnQ7juR";
 
 
 // ========================================
@@ -285,6 +350,7 @@ async function fetchAPI(endpoint) {
         }
     );
 
+
     if (!response.ok) {
 
         throw new Error(
@@ -293,78 +359,14 @@ async function fetchAPI(endpoint) {
 
     }
 
+
     return await response.json();
+
 }
 
 
 // ========================================
-// 시간 표시
-// ========================================
-
-function formatTime(seconds) {
-
-    seconds = Math.floor(seconds);
-
-    const hours = Math.floor(
-        seconds / 3600
-    );
-
-    const minutes = Math.floor(
-        (seconds % 3600) / 60
-    );
-
-    const remainingSeconds =
-        seconds % 60;
-
-
-    if (hours > 0) {
-
-        return (
-            hours + "시간 " +
-            minutes + "분 " +
-            remainingSeconds + "초"
-        );
-
-    }
-
-
-    if (minutes > 0) {
-
-        return (
-            minutes + "분 " +
-            remainingSeconds + "초"
-        );
-
-    }
-
-
-    return remainingSeconds + "초";
-}
-
-
-// ========================================
-// 날짜 표시
-// ========================================
-
-function formatDate(dateString) {
-
-    const date = new Date(
-        dateString + "T00:00:00"
-    );
-
-    return date.toLocaleDateString(
-        "ko-KR",
-        {
-            year: "numeric",
-            month: "long",
-            day: "numeric"
-        }
-    );
-}
-
-
-// ========================================
-// 날짜 문자열
+// 날짜 → YYYY-MM-DD
 // ========================================
 
 function getDateString(date) {
@@ -390,18 +392,67 @@ function getDateString(date) {
         "-" +
         day
     );
+
 }
 
 
 // ========================================
-// 오늘 날짜
+// 작업시간 표시
 // ========================================
 
-function getTodayString() {
+function formatTime(seconds) {
 
-    return getDateString(
-        new Date()
+    seconds =
+        Math.floor(seconds);
+
+
+    const hours =
+        Math.floor(
+            seconds / 3600
+        );
+
+
+    const minutes =
+        Math.floor(
+            (seconds % 3600) / 60
+        );
+
+
+    const remainingSeconds =
+        seconds % 60;
+
+
+    if (hours > 0) {
+
+        return (
+            hours +
+            "시간 " +
+            minutes +
+            "분 " +
+            remainingSeconds +
+            "초"
+        );
+
+    }
+
+
+    if (minutes > 0) {
+
+        return (
+            minutes +
+            "분 " +
+            remainingSeconds +
+            "초"
+        );
+
+    }
+
+
+    return (
+        remainingSeconds +
+        "초"
     );
+
 }
 
 
@@ -419,251 +470,43 @@ function getLevel(seconds) {
         return 0;
     }
 
+
     if (minutes < 15) {
         return 1;
     }
+
 
     if (minutes < 30) {
         return 2;
     }
 
+
     if (minutes < 45) {
         return 3;
     }
+
 
     if (minutes < 60) {
         return 4;
     }
 
+
     return 5;
-}
-
-
-// ========================================
-// 전체 데이터 로드
-// ========================================
-
-async function loadData() {
-
-    try {
-
-        const response = await fetch(
-            SUPABASE_URL +
-            "/rest/v1/work_time?select=date,hour,seconds",
-            {
-                headers: {
-                    "apikey": SUPABASE_KEY,
-                    "Authorization":
-                        `Bearer ${SUPABASE_KEY}`
-                }
-            }
-        );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                `Supabase 오류: ${response.status}`
-            );
-
-        }
-
-
-        const rows =
-            await response.json();
-
-
-        // ----------------------------
-        // 날짜별 합계
-        // ----------------------------
-
-        const daily = {};
-
-
-        let totalSeconds = 0;
-
-
-        for (const row of rows) {
-
-            const date = row.date;
-            const seconds =
-                Number(row.seconds);
-
-
-            daily[date] =
-                (daily[date] || 0)
-                + seconds;
-
-
-            totalSeconds += seconds;
-
-        }
-
-
-        // ----------------------------
-        // 전체 작업시간
-        // ----------------------------
-
-        document.getElementById(
-            "summary"
-        ).textContent =
-            "전체 작업시간: " +
-            formatTime(
-                totalSeconds
-            );
-
-
-        // ----------------------------
-        // 365일 그래프
-        // ----------------------------
-
-        renderGraph(
-            daily
-        );
-
-
-        // ----------------------------
-        // 오늘
-        // ----------------------------
-
-        if (selectedDate === null) {
-
-            selectedDate =
-                getTodayString();
-
-        }
-
-
-        // ----------------------------
-        // 선택 날짜
-        // ----------------------------
-
-        await loadHourlyData(
-            selectedDate
-        );
-
-
-        console.log(
-            "Supabase 데이터 갱신 완료"
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "데이터 갱신 실패:",
-            error
-        );
-
-    }
-
-
-
-    try {
-
-        // ----------------------------
-        // 일별 데이터
-        // ----------------------------
-
-        const daily =
-            await fetchAPI(
-                "/api/daily"
-            );
-
-
-        // ----------------------------
-        // 전체 작업시간
-        // ----------------------------
-
-        const total =
-            await fetchAPI(
-                "/api/total"
-            );
-
-
-        // ----------------------------
-        // 전체 작업시간 표시
-        // ----------------------------
-
-        document.getElementById(
-            "summary"
-        ).textContent =
-            "전체 작업시간: " +
-            formatTime(
-                total.seconds
-            );
-
-
-        // ----------------------------
-        // 365일 그래프
-        // ----------------------------
-
-        renderGraph(
-            daily
-        );
-
-
-        // ----------------------------
-        // 선택된 날짜가 없으면 오늘
-        // ----------------------------
-
-        if (selectedDate === null) {
-
-            selectedDate =
-                getTodayString();
-
-        }
-
-
-        // ----------------------------
-        // 선택된 날짜 갱신
-        // ----------------------------
-
-        await loadHourlyData(
-            selectedDate
-        );
-
-
-        console.log(
-            "WorkTracker 데이터 갱신 완료"
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "데이터 갱신 실패:",
-            error
-        );
-
-    }
 
 }
 
 
 // ========================================
-// 365일 잔디 그래프
+// 이번 주 월요일
 // ========================================
 
-function renderGraph(data) {
+function getMonday(date) {
 
-    const graph =
-        document.getElementById(
-            "graph"
-        );
+    const monday =
+        new Date(date);
 
 
-    graph.innerHTML = "";
-
-
-    // --------------------------------
-    // 오늘
-    // --------------------------------
-
-    const today =
-        new Date();
-
-    today.setHours(
+    monday.setHours(
         0,
         0,
         0,
@@ -671,53 +514,111 @@ function renderGraph(data) {
     );
 
 
-    // --------------------------------
-    // 365일 전
-    // --------------------------------
+    const day =
+        monday.getDay();
 
-    const startDate =
-        new Date(today);
 
-    startDate.setDate(
-        startDate.getDate() - 364
+    const difference =
+        day === 0
+            ? -6
+            : 1 - day;
+
+
+    monday.setDate(
+        monday.getDate() +
+        difference
     );
 
 
-    // --------------------------------
-    // 시작일을 일요일로 맞춤
-    // --------------------------------
+    return monday;
 
-    const firstDay =
-        new Date(startDate);
-
-    firstDay.setDate(
-        firstDay.getDate()
-        - firstDay.getDay()
-    );
+}
 
 
-    let current =
-        new Date(firstDay);
+// ========================================
+// 요일 이름
+// ========================================
+
+const DAY_NAMES = [
+    "월",
+    "화",
+    "수",
+    "목",
+    "금",
+    "토",
+    "일"
+];
 
 
-    // --------------------------------
-    // 주 단위 생성
-    // --------------------------------
+// ========================================
+// 이번 주 데이터 로드
+// ========================================
 
-    while (current <= today) {
+async function loadData() {
 
-        const week =
-            document.createElement(
-                "div"
+    try {
+
+        const today =
+            new Date();
+
+
+        const monday =
+            getMonday(today);
+
+
+        const sunday =
+            new Date(monday);
+
+
+        sunday.setDate(
+            sunday.getDate() + 6
+        );
+
+
+        const startDate =
+            getDateString(monday);
+
+
+        const endDate =
+            getDateString(sunday);
+
+
+        // ----------------------------
+        // 제목
+        // ----------------------------
+
+        document.getElementById(
+            "week-title"
+        ).textContent =
+            `${startDate} ~ ${endDate}`;
+
+
+        // ----------------------------
+        // 이번 주 데이터만 가져오기
+        // ----------------------------
+
+        const endpoint =
+            "/rest/v1/work_time" +
+            "?select=date,hour,seconds" +
+            "&date=gte." +
+            startDate +
+            "&date=lte." +
+            endDate +
+            "&order=date,hour";
+
+
+        const rows =
+            await fetchAPI(
+                endpoint
             );
 
-        week.className =
-            "week";
 
+        // ----------------------------
+        // 날짜/시간 데이터 정리
+        // ----------------------------
 
-        // --------------------------------
-        // 일요일 ~ 토요일
-        // --------------------------------
+        const data = {};
+
 
         for (
             let dayIndex = 0;
@@ -725,30 +626,273 @@ function renderGraph(data) {
             dayIndex++
         ) {
 
+            const date =
+                new Date(monday);
+
+
+            date.setDate(
+                date.getDate() +
+                dayIndex
+            );
+
+
+            const dateString =
+                getDateString(date);
+
+
+            data[dateString] = {};
+
+
+            for (
+                let hour = 0;
+                hour < 24;
+                hour++
+            ) {
+
+                data[dateString][hour] =
+                    0;
+
+            }
+
+        }
+
+
+        // ----------------------------
+        // Supabase 데이터 입력
+        // ----------------------------
+
+        for (const row of rows) {
+
+            const date =
+                row.date;
+
+            const hour =
+                Number(row.hour);
+
+            const seconds =
+                Number(row.seconds);
+
+
+            if (
+                data[date] &&
+                hour >= 0 &&
+                hour <= 23
+            ) {
+
+                data[date][hour] =
+                    seconds;
+
+            }
+
+        }
+
+
+        // ----------------------------
+        // 그래프 생성
+        // ----------------------------
+
+        renderGraph(
+            monday,
+            today,
+            data
+        );
+
+
+        console.log(
+            "이번 주 데이터 갱신 완료"
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "데이터 갱신 실패:",
+            error
+        );
+
+    }
+
+}
+
+
+// ========================================
+// 7 × 24 그래프
+// ========================================
+
+function renderGraph(
+    monday,
+    today,
+    data
+) {
+
+    const graph =
+        document.getElementById(
+            "week-grid"
+        );
+
+
+    graph.innerHTML = "";
+
+
+    // ====================================
+    // 첫 번째 행
+    // 왼쪽 빈 공간 + 요일
+    // ====================================
+
+    const emptyHeader =
+        document.createElement(
+            "div"
+        );
+
+
+    graph.appendChild(
+        emptyHeader
+    );
+
+
+    for (
+        let dayIndex = 0;
+        dayIndex < 7;
+        dayIndex++
+    ) {
+
+        const date =
+            new Date(monday);
+
+
+        date.setDate(
+            date.getDate() +
+            dayIndex
+        );
+
+
+        const header =
+            document.createElement(
+                "div"
+            );
+
+
+        header.className =
+            "day-header";
+
+
+        const dateString =
+            getDateString(date);
+
+
+        header.textContent =
+            DAY_NAMES[dayIndex];
+
+
+        // 오늘이면 강조
+
+        if (
+            dateString ===
+            getDateString(today)
+        ) {
+
+            header.classList.add(
+                "today"
+            );
+
+        }
+
+
+        header.title =
+            dateString;
+
+
+        graph.appendChild(
+            header
+        );
+
+    }
+
+
+    // ====================================
+    // 24시간
+    // ====================================
+
+    for (
+        let hour = 0;
+        hour < 24;
+        hour++
+    ) {
+
+        // -------------------------------
+        // 시간 표시
+        // -------------------------------
+
+        const hourLabel =
+            document.createElement(
+                "div"
+            );
+
+
+        hourLabel.className =
+            "hour-label";
+
+
+        hourLabel.textContent =
+            String(hour).padStart(
+                2,
+                "0"
+            ) + ":00";
+
+
+        graph.appendChild(
+            hourLabel
+        );
+
+
+        // -------------------------------
+        // 월 ~ 일
+        // -------------------------------
+
+        for (
+            let dayIndex = 0;
+            dayIndex < 7;
+            dayIndex++
+        ) {
+
+            const date =
+                new Date(monday);
+
+
+            date.setDate(
+                date.getDate() +
+                dayIndex
+            );
+
+
+            const dateString =
+                getDateString(date);
+
+
+            const seconds =
+                Number(
+                    data[dateString]?.[hour] ||
+                    0
+                );
+
+
+            // ---------------------------
+            // 칸 생성
+            // ---------------------------
+
             const cell =
                 document.createElement(
                     "div"
                 );
 
+
             cell.className =
-                "day";
+                "work-cell";
 
 
-            const dateString =
-                getDateString(
-                    current
-                );
-
-
-            const seconds =
-                Number(
-                    data[dateString] || 0
-                );
-
-
-            // ----------------------------
-            // 잔디 색상
-            // ----------------------------
+            // ---------------------------
+            // 색상 단계
+            // ---------------------------
 
             cell.classList.add(
                 "level-" +
@@ -756,53 +900,53 @@ function renderGraph(data) {
             );
 
 
-            // ----------------------------
-            // 날짜 툴팁
-            // ----------------------------
+            // ---------------------------
+            // 툴팁
+            // ---------------------------
+
+            const hourText =
+                String(hour).padStart(
+                    2,
+                    "0"
+                );
+
 
             cell.title =
-                `${dateString}\n` +
+                `${dateString} ${hourText}:00\n` +
                 `작업시간: ${formatTime(seconds)}`;
 
 
-            // ----------------------------
-            // 날짜 클릭
-            // ----------------------------
+            // ---------------------------
+            // 클릭
+            // ---------------------------
 
             cell.addEventListener(
                 "click",
                 () => {
 
-                    selectedDate =
-                        dateString;
+                    document.getElementById(
+                        "detail-title"
+                    ).textContent =
+                        `${dateString} ${hourText}:00`;
 
-                    loadHourlyData(
-                        dateString
-                    );
+
+                    document.getElementById(
+                        "detail-time"
+                    ).textContent =
+                        "작업시간: " +
+                        formatTime(
+                            seconds
+                        );
 
                 }
             );
 
 
-            week.appendChild(
+            graph.appendChild(
                 cell
             );
 
-
-            // ----------------------------
-            // 다음 날짜
-            // ----------------------------
-
-            current.setDate(
-                current.getDate() + 1
-            );
-
         }
-
-
-        graph.appendChild(
-            week
-        );
 
     }
 
@@ -810,248 +954,21 @@ function renderGraph(data) {
 
 
 // ========================================
-// 시간별 데이터 로드
-// ========================================
-
-async function loadHourlyData(date) {
-
-    try {
-
-        const response = await fetch(
-            SUPABASE_URL +
-            "/rest/v1/work_time" +
-            "?select=hour,seconds" +
-            "&date=eq." +
-            date +
-            "&order=hour",
-            {
-                headers: {
-                    "apikey": SUPABASE_KEY,
-                    "Authorization":
-                        `Bearer ${SUPABASE_KEY}`
-                }
-            }
-        );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                `Supabase 오류: ${response.status}`
-            );
-
-        }
-
-
-        const rows =
-            await response.json();
-
-
-        const hours = {};
-
-
-        for (
-            let hour = 0;
-            hour < 24;
-            hour++
-        ) {
-
-            hours[String(hour)] = 0;
-
-        }
-
-
-        for (const row of rows) {
-
-            hours[String(row.hour)] =
-                Number(row.seconds);
-
-        }
-
-
-        renderHourlyData({
-            date: date,
-            hours: hours
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "시간별 데이터를 불러오지 못했습니다.",
-            error
-        );
-
-    }
-
-
-
-    try {
-
-        const data =
-            await fetchAPI(
-                "/api/hourly?date=" +
-                date
-            );
-
-
-        renderHourlyData(
-            data
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "시간별 데이터를 불러오지 못했습니다.",
-            error
-        );
-
-    }
-
-}
-
-
-// ========================================
-// 24시간 잔디 그래프
-// ========================================
-
-function renderHourlyData(data) {
-
-    const chart =
-        document.getElementById(
-            "hour-chart"
-        );
-
-
-    chart.innerHTML = "";
-
-
-    // --------------------------------
-    // 날짜 제목
-    // --------------------------------
-
-    document.getElementById(
-        "detail-title"
-    ).textContent =
-        formatDate(
-            data.date
-        );
-
-
-    // --------------------------------
-    // 하루 총 작업시간
-    // --------------------------------
-
-    let totalSeconds = 0;
-
-
-    for (
-        let hour = 0;
-        hour < 24;
-        hour++
-    ) {
-
-        totalSeconds +=
-            Number(
-                data.hours[
-                    String(hour)
-                ] || 0
-            );
-
-    }
-
-
-    document.getElementById(
-        "detail-total"
-    ).textContent =
-        "총 작업시간: " +
-        formatTime(
-            totalSeconds
-        );
-
-
-    // --------------------------------
-    // 24개 칸 생성
-    // --------------------------------
-
-    for (
-        let hour = 0;
-        hour < 24;
-        hour++
-    ) {
-
-        const seconds =
-            Number(
-                data.hours[
-                    String(hour)
-                ] || 0
-            );
-
-
-        const cell =
-            document.createElement(
-                "div"
-            );
-
-
-        cell.className =
-            "hour-cell";
-
-
-        // ----------------------------
-        // 작업량 색상
-        // ----------------------------
-
-        cell.classList.add(
-            "level-" +
-            getLevel(seconds)
-        );
-
-
-        // ----------------------------
-        // 툴팁
-        // ----------------------------
-
-        const hourText =
-            String(hour).padStart(
-                2,
-                "0"
-            );
-
-
-        cell.title =
-            `${hourText}시\n` +
-            `작업시간: ${formatTime(seconds)}`;
-
-
-        chart.appendChild(
-            cell
-        );
-
-    }
-
-}
-
-
-// ========================================
-// 시작
+// 처음 로드
 // ========================================
 
 loadData();
 
 
 // ========================================
-// 자동 갱신
+// 10분마다 자동 갱신
 // ========================================
-//
-// 10초마다 SQLite → API → 화면 갱신
-//
 
 setInterval(
     loadData,
-    10000
+    600000
 );
+
 
 </script>
 
@@ -1059,3 +976,4 @@ setInterval(
 </body>
 
 </html>
+```
