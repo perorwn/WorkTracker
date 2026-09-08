@@ -13,4 +13,12 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-웹 데이터 로직 테스트는 통과했으며, 전체 빌드 및 실제 서비스 연결 검증은 아직 완료되지 않았습니다.
+## GitHub Pages (PC에 Node.js 설치 불필요)
+
+GitHub 저장소의 Settings → Pages → Build and deployment → Source에서 **GitHub Actions**를 선택합니다.
+이후 main에 웹 코드가 푸시되면 자동으로 테스트·빌드·배포됩니다. 처음 설정 후에는 Actions → Deploy web to GitHub Pages → Run workflow로 실행할 수 있습니다.
+
+배포 성공 후 주소: https://perorwn.github.io/WorkTracker/
+
+Actions에서 build와 deploy가 모두 초록색인지 확인하세요. Python 측정 프로그램은 기존처럼 PC에서 실행합니다.
+웹 데이터 로직 테스트는 통과했으며, 전체 빌드 결과는 Actions에서 확인할 수 있습니다.
