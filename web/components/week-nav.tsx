@@ -19,7 +19,7 @@ export function WeekNav({ rangeLabel, onPrev, onNext, onToday, isCurrentWeek }: 
           <button
             type="button"
             onClick={onPrev}
-            aria-label="Previous week"
+            aria-label="이전 주"
             className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -28,15 +28,15 @@ export function WeekNav({ rangeLabel, onPrev, onNext, onToday, isCurrentWeek }: 
             type="button"
             onClick={onNext}
             disabled={isCurrentWeek}
-            aria-label="Next week"
+            aria-label="다음 주"
             className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-30"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-            Week of
+          <p className="text-[11px] font-medium tracking-normal text-muted-foreground">
+            기간
           </p>
           <p className="font-mono text-sm font-medium text-foreground tabular-nums">
             {rangeLabel}
@@ -55,7 +55,7 @@ export function WeekNav({ rangeLabel, onPrev, onNext, onToday, isCurrentWeek }: 
             : "border-border bg-card text-foreground hover:bg-muted",
         )}
       >
-        {isCurrentWeek ? "This week" : "Today"}
+        {isCurrentWeek ? "이번 주" : "이번 주로"}
       </button>
     </div>
   )

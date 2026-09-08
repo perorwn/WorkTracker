@@ -1,12 +1,12 @@
-export const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const
+export const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"] as const
 export const DAY_LABELS_FULL = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
+  "월요일",
+  "화요일",
+  "수요일",
+  "목요일",
+  "금요일",
+  "토요일",
+  "일요일",
 ] as const
 
 /** minutes worked, indexed as data[dayIndex 0-6][hour 0-23] */
@@ -60,7 +60,7 @@ export function formatDuration(minutes: number): string {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const sec = seconds % 60
-  return [h ? `${h}h` : "", m ? `${m}m` : "", sec ? `${sec}s` : ""].filter(Boolean).join(" ") || "0m"
+  return [h ? `${h}시간` : "", m ? `${m}분` : "", sec ? `${sec}초` : ""].filter(Boolean).join(" ") || "0분"
 }
 
 export function formatHour(hour: number): string {
@@ -69,16 +69,11 @@ export function formatHour(hour: number): string {
 
 export function formatWeekRange(weekStart: Date): string {
   const end = addDays(weekStart, 6)
-  const sameMonth = weekStart.getMonth() === end.getMonth()
-  const sameYear = weekStart.getFullYear() === end.getFullYear()
-  const startFmt: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }
-  const endFmt: Intl.DateTimeFormatOptions = sameMonth
-    ? { day: "numeric" }
-    : { month: "short", day: "numeric" }
-  const startStr = weekStart.toLocaleDateString("en-US", startFmt)
-  const endStr = end.toLocaleDateString("en-US", endFmt)
-  const year = end.getFullYear()
-  return sameYear ? `${startStr} – ${endStr}, ${year}` : `${startStr} – ${endStr}`
+  const shortDate = (d: Date) => `${d.getMonth() + 1}.${d.getDate()}`
+  const start = `${weekStart.getFullYear()}. ${shortDate(weekStart)}`
+  const finish = weekStart.getFullYear() === end.getFullYear()
+    ? shortDate(end) : `${end.getFullYear()}. ${shortDate(end)}`
+  return `${start} – ${finish}`
 }
 
 export function weekTotalMinutes(data: WeekData): number {
@@ -144,7 +139,7 @@ export function buildContributionData(rows: WorkRow[], now: Date, days = 365): C
 }
 
 export function formatFullDate(date: Date): string {
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString("ko-KR", {
     weekday: "short",
     month: "short",
     day: "numeric",

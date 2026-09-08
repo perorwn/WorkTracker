@@ -11,9 +11,9 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Canvas — Clip Studio Paint Time Tracker',
+  title: '작업 기록 — 클립 스튜디오',
   description:
-    'A minimalist personal dashboard tracking your Clip Studio Paint working hours across the week.',
+    '클립 스튜디오 작업 시간을 주간·연간 그래프로 확인하세요.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -49,7 +49,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="ko"
       className={`${inter.variable} ${jetbrainsMono.variable} bg-background`}
     >
       <body className="font-sans antialiased">

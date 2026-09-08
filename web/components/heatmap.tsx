@@ -6,6 +6,7 @@ import {
   HEAT_CLASS,
   addDays,
   intensityLevel,
+  formatDuration,
   isSameDay,
   type WeekData,
 } from "@/lib/work-data"
@@ -82,7 +83,7 @@ export function Heatmap({ data, weekStart, today, selected, onSelect }: HeatmapP
                       key={hour}
                       type="button"
                       onClick={() => onSelect({ day: dayIndex, hour })}
-                      aria-label={`${label} ${String(hour).padStart(2, "0")}:00 — ${minutes} minutes`}
+                      aria-label={`${label} ${String(hour).padStart(2, "0")}:00 — ${formatDuration(minutes)}`}
                       aria-pressed={isSelected}
                       className={cn(
                         "h-[var(--cell)] w-full rounded-[3px] ring-offset-2 ring-offset-background transition-[transform,box-shadow] duration-150 outline-none",
@@ -109,7 +110,7 @@ export function Heatmap({ data, weekStart, today, selected, onSelect }: HeatmapP
 function Legend() {
   return (
     <div className="mt-6 flex items-center justify-end gap-2 text-xs text-muted-foreground">
-      <span>Less</span>
+      <span>적음</span>
       <div className="flex items-center gap-[3px]">
         {[0, 1, 2, 3, 4, 5].map((level) => (
           <span
@@ -122,7 +123,7 @@ function Legend() {
           />
         ))}
       </div>
-      <span>More</span>
+      <span>많음</span>
     </div>
   )
 }

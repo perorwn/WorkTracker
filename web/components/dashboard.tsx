@@ -112,7 +112,7 @@ export function Dashboard() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-5 py-10 sm:px-8 sm:py-14">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground text-balance">
-        Work Time Tracker
+        작업 기록
       </h1>
 
       <WeekNav
@@ -141,7 +141,7 @@ export function Dashboard() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_20rem]">
         <section
-          aria-label="Weekly working-time heatmap"
+          aria-label="주간 작업 기록"
           className="rounded-xl border border-border bg-card p-5 sm:p-6"
         >
           <Heatmap
@@ -153,7 +153,7 @@ export function Dashboard() {
           />
         </section>
 
-        <aside aria-label="Selected day detail">
+        <aside aria-label="선택한 날짜 상세">
           <DayDetail data={data} weekStart={weekStart} selected={selected} />
         </aside>
       </div>

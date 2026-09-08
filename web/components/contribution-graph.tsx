@@ -14,7 +14,7 @@ import {
 
 type Cell = ContributionDay | null
 
-const WEEKDAY_LABELS = ["Mon", "", "Wed", "", "Fri", "", ""]
+const WEEKDAY_LABELS = ["월", "", "수", "", "금", "", ""]
 
 interface ContributionGraphProps {
   data: ContributionDay[]
@@ -52,7 +52,7 @@ export function ContributionGraph({
         if (col - lastLabelCol < 4) return
         monthLabels.push({
           col,
-          label: firstReal.date.toLocaleDateString("en-US", { month: "short" }),
+          label: firstReal.date.toLocaleDateString("ko-KR", { month: "short" }),
         })
         lastLabelCol = col
       }
@@ -64,13 +64,13 @@ export function ContributionGraph({
 
   return (
     <section
-      aria-label="Recent 365-day work-time contribution graph"
+      aria-label="최근 1년 작업 기록"
       className="rounded-xl border border-border bg-card p-5 sm:p-6"
     >
       <div className="mb-4 flex items-baseline justify-between gap-4">
-        <h2 className="text-sm font-medium text-foreground">Last 365 days</h2>
+        <h2 className="text-sm font-medium text-foreground">최근 1년</h2>
         <p className="text-xs text-muted-foreground tabular-nums">
-          {formatDuration(total)} total
+          합계 {formatDuration(total)}
         </p>
       </div>
 
@@ -124,10 +124,10 @@ export function ContributionGraph({
                       type="button"
                       onClick={() => onSelectDate?.(cell.date)}
                       title={`${formatFullDate(cell.date)} — ${
-                        cell.minutes > 0 ? formatDuration(cell.minutes) : "no work"
+                        cell.minutes > 0 ? formatDuration(cell.minutes) : "기록 없음"
                       }`}
                       aria-label={`${formatFullDate(cell.date)}, ${
-                        cell.minutes > 0 ? formatDuration(cell.minutes) : "no work"
+                        cell.minutes > 0 ? formatDuration(cell.minutes) : "기록 없음"
                       }`}
                       className={cn(
                         "h-[var(--dot)] w-[var(--dot)] rounded-[2px] transition-transform hover:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-card",
@@ -146,7 +146,7 @@ export function ContributionGraph({
       </div>
 
       <div className="mt-4 flex items-center justify-end gap-2 text-xs text-muted-foreground">
-        <span>Less</span>
+        <span>적음</span>
         <div className="flex items-center gap-[3px]">
           {[0, 1, 2, 3, 4, 5].map((level) => (
             <span
@@ -159,7 +159,7 @@ export function ContributionGraph({
             />
           ))}
         </div>
-        <span>More</span>
+        <span>많음</span>
       </div>
     </section>
   )
