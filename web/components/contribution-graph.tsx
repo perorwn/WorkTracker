@@ -38,21 +38,18 @@ export function ContributionGraph({
     const weeks: Cell[][] = []
     for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
 
-    // One label per column when its first real day starts a new month,
-    // skipping labels that would crowd against the previous one.
+    // Align each month with the week containing its first day.
     const monthLabels: { col: number; label: string }[] = []
-    let lastMonth = -1
     let lastLabelCol = -3
     weeks.forEach((week, col) => {
       const firstReal = week.find((c): c is ContributionDay => c !== null)
       if (!firstReal) return
-      const month = firstReal.date.getMonth()
-      if (month !== lastMonth) {
-        lastMonth = month
+      const monthStart = week.find((c) => c?.date.getDate() === 1)
+      if (col === 0 || monthStart) {
         if (col - lastLabelCol < 4) return
         monthLabels.push({
           col,
-          label: firstReal.date.toLocaleDateString("ko-KR", { month: "short" }),
+          label: (monthStart ?? firstReal).date.toLocaleDateString("ko-KR", { month: "short" }),
         })
         lastLabelCol = col
       }
@@ -75,13 +72,13 @@ export function ContributionGraph({
       </div>
 
       <div className="overflow-x-auto pb-1">
-        <div className="inline-flex flex-col gap-1.5 [--dot:11px]">
+        <div className="inline-flex w-max flex-col gap-1.5 pr-6 [--dot:11px]">
           {/* Month axis */}
-          <div className="relative ml-8 h-4">
+          <div className="relative ml-[35px] h-4">
             {monthLabels.map(({ col, label }) => (
               <span
                 key={`${col}-${label}`}
-                className="absolute top-0 text-[10px] leading-none text-muted-foreground"
+                className="absolute top-0 w-max whitespace-nowrap text-[10px] leading-none text-muted-foreground"
                 style={{ left: `calc(${col} * (var(--dot) + 3px))` }}
               >
                 {label}
