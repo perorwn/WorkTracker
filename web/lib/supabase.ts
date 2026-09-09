@@ -4,6 +4,32 @@ export interface WorkRow { date: string; hour: number; seconds: number }
 const URL_ROOT = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://hmaicgmzobzolwydkysc.supabase.co"
 const PUBLIC_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_N51dEQq1SRYJrKrgH79zOA_ZnnQ7juR"
 
+function validateRow(row: unknown): WorkRow {
+  if (!row || typeof row !== "object") throw new Error("기록 응답 형식이 올바르지 않습니다.")
+  const value = row as Record<string, unknown>
+  if (typeof value.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value.date) ||
+      !Number.isInteger(value.hour) || Number(value.hour) < 0 || Number(value.hour) > 23 ||
+      typeof value.seconds !== "number" || !Number.isFinite(value.seconds) || value.seconds < 0) {
+    throw new Error("기록에 잘못된 날짜 또는 작업 시간이 있습니다.")
+  }
+  return value as unknown as WorkRow
+}
+
+export async function fetchWorkRow(date: string, hour: number, signal: AbortSignal): Promise<WorkRow | null> {
+  const url = new URL(`${URL_ROOT}/rest/v1/work_time`)
+  url.searchParams.set("select", "date,hour,seconds")
+  url.searchParams.set("date", `eq.${date}`)
+  url.searchParams.set("hour", `eq.${hour}`)
+  url.searchParams.set("limit", "1")
+  const response = await fetch(url, {
+    headers: { apikey: PUBLIC_KEY }, signal, cache: "no-store",
+  })
+  if (!response.ok) throw new Error(`현재 기록을 불러오지 못했습니다 (${response.status}).`)
+  const rows: unknown = await response.json()
+  if (!Array.isArray(rows)) throw new Error("기록 응답 형식이 올바르지 않습니다.")
+  return rows.length ? validateRow(rows[0]) : null
+}
+
 export async function fetchWorkRows(start: string, end: string, signal: AbortSignal): Promise<WorkRow[]> {
   const result: WorkRow[] = []
   let offset = 0
@@ -24,12 +50,7 @@ export async function fetchWorkRows(start: string, end: string, signal: AbortSig
     if (!Array.isArray(rows)) throw new Error("기록 응답 형식이 올바르지 않습니다.")
     if (!rows.length) break
     for (const row of rows) {
-      if (typeof row.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(row.date) ||
-          !Number.isInteger(row.hour) || row.hour < 0 || row.hour > 23 ||
-          typeof row.seconds !== "number" || !Number.isFinite(row.seconds) || row.seconds < 0) {
-        throw new Error("기록에 잘못된 날짜 또는 작업 시간이 있습니다.")
-      }
-      result.push(row)
+      result.push(validateRow(row))
     }
     offset += rows.length
   }

@@ -1,10 +1,26 @@
 import time
 import ctypes
+import threading
 from datetime import datetime, timedelta
 
 import database
 from sync import sync_database
 
+import pystray
+from PIL import Image, ImageDraw
+import sys
+
+MUTEX_NAME = "WorkTracker_SingleInstance"
+
+mutex = ctypes.windll.kernel32.CreateMutexW(
+    None,
+    False,
+    MUTEX_NAME
+)
+
+if ctypes.windll.kernel32.GetLastError() == 183:
+    # 이미 실행 중
+    sys.exit(0)
 
 # ========================================
 # 설정
@@ -13,7 +29,16 @@ from sync import sync_database
 IDLE_LIMIT = 10
 
 # Supabase 동기화 주기
-SYNC_INTERVAL = 300
+SYNC_INTERVAL = 5
+sync_lock = threading.Lock()
+
+
+# ========================================
+# 프로그램 상태
+# ========================================
+
+current_status = "시작 중"
+is_running = True
 
 
 # ========================================
@@ -76,43 +101,136 @@ def get_active_window_title():
 
 
 # ========================================
-# 시작
+# 트레이 아이콘 이미지
 # ========================================
 
-print("WorkTracker 시작")
-print(f"무입력 제한시간: {IDLE_LIMIT}초")
-print()
-print("조건:")
-print("  1. Clip Studio Paint가 활성 창")
-print("  2. 마지막 입력 후 10초 이내")
-print()
-print("종료하려면 Ctrl+C")
-print()
+def create_icon_image():
+
+    image = Image.new(
+        "RGB",
+        (64, 64),
+        "white"
+    )
+
+    draw = ImageDraw.Draw(image)
+
+    # 간단한 시계 모양 아이콘
+    draw.ellipse(
+        (8, 8, 56, 56),
+        outline="black",
+        width=4
+    )
+
+    draw.line(
+        (32, 32, 32, 18),
+        fill="black",
+        width=4
+    )
+
+    draw.line(
+        (32, 32, 44, 38),
+        fill="black",
+        width=4
+    )
+
+    return image
 
 
 # ========================================
-# 상태
+# 트레이 메뉴
 # ========================================
 
-last_check = datetime.now()
+def get_status_text(icon):
 
-was_working = False
+    return current_status
 
-work_start = None
 
-# 마지막 Supabase 동기화 시간
-last_sync = datetime.now()
+def quit_program(icon, item):
+
+    global is_running
+
+    is_running = False
+
+    icon.stop()
+
+
+def create_tray_icon():
+
+    image = create_icon_image()
+
+    menu = pystray.Menu(
+        pystray.MenuItem(
+            "현재 상태",
+            get_status_text,
+            enabled=False
+        ),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(
+            "WorkTracker 종료",
+            quit_program
+        )
+    )
+
+    icon = pystray.Icon(
+        "WorkTracker",
+        image,
+        "WorkTracker",
+        menu
+    )
+
+    return icon
 
 
 # ========================================
-# 메인 루프
+# 작업시간 측정
 # ========================================
 
-try:
+def sync_in_background():
 
-    while True:
+    if not sync_lock.acquire(blocking=False):
+        return
+
+    try:
+        sync_database()
+    except Exception as error:
+        print(">>> Supabase 동기화 실패: " f"{error}")
+    finally:
+        sync_lock.release()
+
+def tracking_loop():
+
+    global current_status
+    global is_running
+
+    print("WorkTracker 시작")
+    print(f"무입력 제한시간: {IDLE_LIMIT}초")
+    print()
+    print("조건:")
+    print("  1. Clip Studio Paint가 활성 창")
+    print("  2. 마지막 입력 후 10초 이내")
+    print()
+
+    # ====================================
+    # 상태
+    # ====================================
+
+    last_check = datetime.now()
+
+    was_working = False
+
+    work_start = None
+
+    # 마지막 Supabase 동기화 시간
+    last_sync = datetime.now()
+
+    # ====================================
+    # 메인 루프
+    # ====================================
+
+    while is_running:
 
         now = datetime.now()
+
         # --------------------------------
         # Supabase 자동 동기화
         # --------------------------------
@@ -121,16 +239,10 @@ try:
             now - last_sync
         ).total_seconds() >= SYNC_INTERVAL:
 
-            try:
-
-                sync_database()
-
-            except Exception as error:
-
-                print(
-                    ">>> Supabase 동기화 실패:"
-                    f" {error}"
-                )
+            threading.Thread(
+                target=sync_in_background,
+                daemon=True,
+            ).start()
 
             last_sync = now
 
@@ -145,7 +257,6 @@ try:
             in title.upper()
         )
 
-
         # --------------------------------
         # 입력 상태
         # --------------------------------
@@ -156,7 +267,6 @@ try:
             idle_seconds < IDLE_LIMIT
         )
 
-
         # --------------------------------
         # 실제 작업 상태
         # --------------------------------
@@ -166,7 +276,6 @@ try:
             and has_recent_input
         )
 
-
         # --------------------------------
         # 작업 시작
         # --------------------------------
@@ -175,8 +284,9 @@ try:
 
             work_start = now
 
-            print(">>> 작업 시작")
+            current_status = "작업 중"
 
+            print(">>> 작업 시작")
 
         # --------------------------------
         # 작업 중
@@ -193,6 +303,7 @@ try:
                 elapsed
             )
 
+            current_status = "작업 중"
 
         # --------------------------------
         # 작업 종료
@@ -233,6 +344,8 @@ try:
                             elapsed
                         )
 
+                    current_status = "대기 중"
+
                     print(
                         f">>> 작업 중단 "
                         f"(무입력 {idle_seconds:.1f}초)"
@@ -250,6 +363,8 @@ try:
                         elapsed
                     )
 
+                    current_status = "대기 중"
+
                     print(
                         ">>> 작업 중단 "
                         "(CSP 비활성)"
@@ -257,9 +372,8 @@ try:
 
             work_start = None
 
-
         # --------------------------------
-        # 화면 출력
+        # 상태 출력
         # --------------------------------
 
         if is_working:
@@ -272,6 +386,8 @@ try:
 
         elif is_csp:
 
+            current_status = "대기 중"
+
             print(
                 f"대기 중 | "
                 f"무입력 {idle_seconds:.1f}초 | "
@@ -280,11 +396,12 @@ try:
 
         else:
 
+            current_status = "대기 중"
+
             print(
                 f"대기 중 | "
                 f"현재 창: {title}"
             )
-
 
         # --------------------------------
         # 상태 업데이트
@@ -295,8 +412,20 @@ try:
 
         time.sleep(1)
 
-
-except KeyboardInterrupt:
-
-    print()
     print("WorkTracker 종료")
+
+
+# ========================================
+# 프로그램 시작
+# ========================================
+
+tray_icon = create_tray_icon()
+
+tracking_thread = threading.Thread(
+    target=tracking_loop,
+    daemon=True
+)
+
+tracking_thread.start()
+
+tray_icon.run()

@@ -15,6 +15,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY")
 
 DB_FILE = "work_tracker.db"
+_last_synced = {}
 
 
 # ========================================
@@ -61,8 +62,14 @@ def sync_database():
     # ------------------------------------
 
     if not rows:
+        return
 
-        print("동기화할 데이터가 없습니다.")
+    changed_rows = [
+        row for row in rows
+        if _last_synced.get((row[0], row[1])) != row[2]
+    ]
+
+    if not changed_rows:
         return
 
 
@@ -93,7 +100,7 @@ def sync_database():
 
     data = []
 
-    for date, hour, seconds in rows:
+    for date, hour, seconds in changed_rows:
 
         data.append({
             "date": date,
@@ -119,6 +126,9 @@ def sync_database():
     # ------------------------------------
 
     if response.ok:
+
+        for date, hour, seconds in changed_rows:
+            _last_synced[(date, hour)] = seconds
 
         print(
             f"Supabase 동기화 완료 "

@@ -1,3 +1,4 @@
 .env
 work_tracker.db
 __pycache__/
+.venv/
