@@ -17,6 +17,7 @@ test('hourly seconds survive conversion, week/year totals agree, missing days ar
   assert.equal(formatDuration(1433/60),'23분 53초')
   assert.equal(formatDuration(3599/60),'59분 59초')
   assert.equal(formatDuration(60),'1시간')
+  assert.equal(formatDuration((3600+2*60+29)/60),'1시간 2분')
   assert.equal(intensityLevel(60),4)
   assert.equal(intensityLevel(15),2)
   assert.equal(dailyIntensityLevel(329.99),1)

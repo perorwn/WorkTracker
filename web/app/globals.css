@@ -77,6 +77,10 @@
   --heat-2: oklch(0.83 0.075 253);
   --heat-3: oklch(0.7 0.115 255);
   --heat-4: oklch(0.45 0.16 258);
+  --flap-background: oklch(0.955 0.004 255);
+  --flap-foreground: oklch(0.24 0.02 260);
+  --flap-border: oklch(0.86 0.008 255);
+  --flap-seam: oklch(0.78 0.01 255);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -118,6 +122,10 @@
   --heat-2: oklch(0.42 0.085 256);
   --heat-3: oklch(0.53 0.12 256);
   --heat-4: oklch(0.75 0.15 254);
+  --flap-background: oklch(0.26 0.012 260);
+  --flap-foreground: oklch(0.96 0.004 250);
+  --flap-border: oklch(0.38 0.014 260);
+  --flap-seam: oklch(0.12 0.01 260);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -159,6 +167,10 @@
     --heat-2: oklch(0.42 0.085 256);
     --heat-3: oklch(0.53 0.12 256);
     --heat-4: oklch(0.75 0.15 254);
+    --flap-background: oklch(0.26 0.012 260);
+    --flap-foreground: oklch(0.96 0.004 250);
+    --flap-border: oklch(0.38 0.014 260);
+    --flap-seam: oklch(0.12 0.01 260);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -194,7 +206,7 @@
   font-size: 1.85rem;
   font-weight: 600;
   line-height: 3rem;
-  color: #f5f5f4;
+  color: var(--flap-foreground);
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -207,8 +219,8 @@
   width: 100%;
   height: 50%;
   overflow: hidden;
-  background: #24262b;
-  border: 1px solid #393c43;
+  background: var(--flap-background);
+  border: 1px solid var(--flap-border);
   backface-visibility: hidden;
 }
 
@@ -222,13 +234,13 @@
 .split-flap-top {
   top: 0;
   border-radius: 0.3rem 0.3rem 0.08rem 0.08rem;
-  border-bottom-color: #111216;
+  border-bottom-color: var(--flap-seam);
 }
 
 .split-flap-bottom {
   bottom: 0;
   border-radius: 0.08rem 0.08rem 0.3rem 0.3rem;
-  border-top-color: #111216;
+  border-top-color: var(--flap-seam);
 }
 
 .split-flap-bottom > span {

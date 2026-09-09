@@ -58,7 +58,11 @@ export function formatDuration(minutes: number): string {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const sec = seconds % 60
-  return [h ? `${h}시간` : "", m ? `${m}분` : "", sec ? `${sec}초` : ""].filter(Boolean).join(" ") || "0분"
+  return [
+    h ? `${h}시간` : "",
+    m ? `${m}분` : "",
+    !h && sec ? `${sec}초` : "",
+  ].filter(Boolean).join(" ") || "0분"
 }
 
 export function formatHour(hour: number): string {
