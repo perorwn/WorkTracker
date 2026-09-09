@@ -4,6 +4,9 @@ import { cn } from "@/lib/utils"
 import { formatDuration, HEAT_CLASS, intensityLevel } from "@/lib/work-data"
 import { FlipDuration } from "@/components/flip-duration"
 import { RecordStatus } from "@/components/record-status"
+import { Activity, Focus, Hourglass, Timer } from "lucide-react"
+
+export type WindowMode = "tracking" | "pomodoro" | "timer" | "stopwatch"
 
 interface WindowDayProps {
   date: Date
@@ -11,11 +14,20 @@ interface WindowDayProps {
   currentHour: number
   currentSeconds: number
   isLive: boolean
+  activeMode: WindowMode
+  onModeChange: (mode: WindowMode) => void
 }
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
-export function WindowDay({ date, hours, currentHour, currentSeconds, isLive }: WindowDayProps) {
+const MODE_ITEMS = [
+  { mode: "tracking", label: "작업 시간 측정", shortcut: "F1", icon: Activity },
+  { mode: "pomodoro", label: "뽀모도로", shortcut: "F2", icon: Focus },
+  { mode: "timer", label: "타이머", shortcut: "F3", icon: Hourglass },
+  { mode: "stopwatch", label: "스톱워치", shortcut: "F4", icon: Timer },
+] as const
+
+export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, activeMode, onModeChange }: WindowDayProps) {
   const totalMinutes = hours.reduce((sum, minutes) => sum + minutes, 0)
   const currentTimeLabel = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
   const dateLabel = date.toLocaleDateString("ko-KR", {
@@ -65,6 +77,26 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive }: 
           })}
         </div>
       </section>
+
+      <nav className="grid w-12 shrink-0 grid-rows-4 overflow-hidden rounded-xl border border-border bg-card" aria-label="창모드 기능">
+        {MODE_ITEMS.map(({ mode, label, shortcut, icon: Icon }) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => onModeChange(mode)}
+            title={`${label} (Ctrl+Shift+${shortcut})`}
+            aria-label={`${label}, Ctrl+Shift+${shortcut}`}
+            aria-pressed={activeMode === mode}
+            className={cn(
+              "relative flex items-center justify-center border-b border-border text-muted-foreground transition-colors last:border-b-0 hover:bg-muted hover:text-foreground focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ring",
+              activeMode === mode && "bg-accent text-primary",
+            )}
+          >
+            {activeMode === mode && <span className="absolute top-2 bottom-2 left-0 w-0.5 rounded-r bg-primary" />}
+            <Icon className="h-5 w-5" strokeWidth={1.7} aria-hidden="true" />
+          </button>
+        ))}
+      </nav>
 
       <aside className="relative flex w-52 shrink-0 items-center justify-center rounded-xl border border-border bg-card p-5">
         <div className="absolute top-5 right-5 left-5 flex items-center justify-between gap-2">

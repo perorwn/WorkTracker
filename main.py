@@ -3,6 +3,7 @@ import ctypes
 import threading
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from ctypes import wintypes
 from datetime import datetime, timedelta
 
 import database
@@ -49,7 +50,11 @@ live_state = {
     "hour": 0,
     "seconds": 0,
     "hours": [0] * 24,
+    "mode": "tracking",
+    "hotkeys": [False] * 4,
 }
+
+WINDOW_MODES = ("tracking", "pomodoro", "timer", "stopwatch")
 
 
 # ========================================
@@ -70,7 +75,7 @@ class LiveStateHandler(BaseHTTPRequestHandler):
         }:
             self.send_header("Access-Control-Allow-Origin", origin)
         self.send_header("Access-Control-Allow-Private-Network", "true")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
@@ -85,6 +90,25 @@ class LiveStateHandler(BaseHTTPRequestHandler):
             payload = json.dumps(live_state, ensure_ascii=False).encode("utf-8")
         self._send_headers()
         self.wfile.write(payload)
+
+    def do_POST(self):
+        if self.path.rstrip("/") != "/mode":
+            self._send_headers(404)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            mode = payload.get("mode")
+        except (ValueError, json.JSONDecodeError, UnicodeDecodeError):
+            self._send_headers(400)
+            return
+        if mode not in WINDOW_MODES:
+            self._send_headers(400)
+            return
+        set_window_mode(mode)
+        response = json.dumps({"mode": mode}).encode("utf-8")
+        self._send_headers()
+        self.wfile.write(response)
 
     def log_message(self, format, *args):
         return
@@ -110,6 +134,40 @@ def update_live_state(now, working):
             "seconds": hours[now.hour],
             "hours": hours,
         })
+
+
+def set_window_mode(mode):
+    with live_state_lock:
+        live_state["mode"] = mode
+
+
+def run_global_hotkeys():
+    user32 = ctypes.windll.user32
+    hotkey_base_id = 4100
+    modifiers = 0x0002 | 0x0004 | 0x4000  # Ctrl + Shift + no repeat
+    first_function_key = 0x70  # F1
+
+    registrations = []
+    for index in range(4):
+        registered = bool(user32.RegisterHotKey(
+            None,
+            hotkey_base_id + index,
+            modifiers,
+            first_function_key + index,
+        ))
+        registrations.append(registered)
+        if not registered:
+            print(f">>> Ctrl+Shift+F{index + 1} 단축키 등록 실패")
+
+    with live_state_lock:
+        live_state["hotkeys"] = registrations
+
+    message = wintypes.MSG()
+    while user32.GetMessageW(ctypes.byref(message), None, 0, 0) != 0:
+        if message.message == 0x0312:  # WM_HOTKEY
+            index = int(message.wParam) - hotkey_base_id
+            if 0 <= index < len(WINDOW_MODES):
+                set_window_mode(WINDOW_MODES[index])
 
 
 # ========================================
@@ -507,5 +565,12 @@ live_state_server_thread = threading.Thread(
 )
 
 live_state_server_thread.start()
+
+hotkey_thread = threading.Thread(
+    target=run_global_hotkeys,
+    daemon=True,
+)
+
+hotkey_thread.start()
 
 tray_icon.run()

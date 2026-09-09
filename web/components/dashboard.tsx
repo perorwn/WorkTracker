@@ -18,7 +18,7 @@ import { DayDetail } from "@/components/day-detail"
 import { WeekNav } from "@/components/week-nav"
 import { WeekSummary } from "@/components/week-summary"
 import { ContributionGraph } from "@/components/contribution-graph"
-import { WindowDay } from "@/components/window-day"
+import { WindowDay, type WindowMode } from "@/components/window-day"
 import { ThemeToggle, type Theme } from "@/components/theme-toggle"
 import { RecordStatus } from "@/components/record-status"
 
@@ -35,6 +35,7 @@ type LocalStatus = {
   hour: number
   seconds: number
   hours: number[]
+  mode: WindowMode
 }
 
 export function Dashboard() {
@@ -51,6 +52,7 @@ export function Dashboard() {
   const [pictureWindow, setPictureWindow] = useState<Window | null>(null)
   const [trackerAvailable, setTrackerAvailable] = useState(false)
   const [theme, setTheme] = useState<Theme>("light")
+  const [activeWindowMode, setActiveWindowMode] = useState<WindowMode>("tracking")
   const lastRemoteSeconds = useRef<{ key: string; seconds: number } | null>(null)
   const currentWeekStart = useMemo(() => getWeekStart(today), [today])
 
@@ -142,6 +144,9 @@ export function Dashboard() {
           lastSnapshot = snapshot
           setCurrentSeconds(status.seconds)
           setIsLive(status.working)
+          if (["tracking", "pomodoro", "timer", "stopwatch"].includes(status.mode)) {
+            setActiveWindowMode(status.mode)
+          }
           setRows((existing) => [
             ...existing.filter((row) => row.date !== status.date),
             ...status.hours.flatMap((seconds, hour) => seconds > 0
@@ -296,6 +301,19 @@ export function Dashboard() {
     popup?.focus()
   }
 
+  const changeWindowMode = (mode: WindowMode) => {
+    setActiveWindowMode(mode)
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode }),
+      cache: "no-store",
+      mode: "cors",
+      targetAddressSpace: "loopback",
+    } as RequestInit & { targetAddressSpace: "loopback" }
+    void fetch("http://localhost:8765/mode", options).catch(() => undefined)
+  }
+
   if (isWindowMode === null) return <div className="h-screen bg-background" />
 
   if (isWindowMode) {
@@ -306,6 +324,8 @@ export function Dashboard() {
         currentHour={currentHour}
         currentSeconds={currentSeconds}
         isLive={isLive}
+        activeMode={activeWindowMode}
+        onModeChange={changeWindowMode}
       />
     )
   }
@@ -319,6 +339,8 @@ export function Dashboard() {
         currentHour={currentHour}
         currentSeconds={currentSeconds}
         isLive={isLive}
+        activeMode={activeWindowMode}
+        onModeChange={changeWindowMode}
       />,
       pictureWindow.document.body,
     )}
