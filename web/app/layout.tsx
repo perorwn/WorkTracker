@@ -18,10 +18,23 @@ const pretendard = localFont({
 
 export const metadata: Metadata = {
   title: '작업 기록 — 클립 스튜디오',
+  applicationName: 'WorkTracker',
   description:
     '클립 스튜디오 작업 시간을 주간·연간 그래프로 확인하세요.',
+  manifest: `${basePath}/manifest.webmanifest`,
   icons: {
-    icon: `${basePath}/icon.svg`,
+    icon: [
+      { url: `${basePath}/icon.svg`, type: 'image/svg+xml' },
+      { url: `${basePath}/icons/favicon-32.png`, sizes: '32x32', type: 'image/png' },
+    ],
+    apple: [
+      { url: `${basePath}/icons/apple-touch-icon.png`, sizes: '180x180', type: 'image/png' },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'WorkTracker',
+    statusBarStyle: 'default',
   },
 }
 
