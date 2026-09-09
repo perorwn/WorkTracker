@@ -160,8 +160,8 @@ export function Dashboard() {
         body: JSON.stringify({ action: "theme", theme }),
         cache: "no-store",
         mode: "cors",
-        targetAddressSpace: "loopback",
-      } as RequestInit & { targetAddressSpace: "loopback" }
+        targetAddressSpace: "local",
+      } as RequestInit & { targetAddressSpace: "local" }
       void fetch(`${LOCAL_API}/window`, options).catch(() => undefined)
     }
   }, [theme, themeReady])
@@ -188,8 +188,8 @@ export function Dashboard() {
           signal: controller.signal,
           cache: "no-store",
           mode: "cors",
-          targetAddressSpace: "loopback",
-        } as RequestInit & { targetAddressSpace: "loopback" }
+          targetAddressSpace: "local",
+        } as RequestInit & { targetAddressSpace: "local" }
         const response = await fetch(`${LOCAL_API}/status`, options)
         if (!response.ok) throw new Error("tracker unavailable")
         const status = await response.json() as LocalStatus
@@ -342,8 +342,8 @@ export function Dashboard() {
       body: JSON.stringify({ action: "open", theme }),
       cache: "no-store",
       mode: "cors",
-      targetAddressSpace: "loopback",
-    } as RequestInit & { targetAddressSpace: "loopback" }
+      targetAddressSpace: "local",
+    } as RequestInit & { targetAddressSpace: "local" }
     await fetch(`${LOCAL_API}/window`, options).catch(() => undefined)
   }
 
@@ -356,8 +356,8 @@ export function Dashboard() {
       body: JSON.stringify({ mode }),
       cache: "no-store",
       mode: "cors",
-      targetAddressSpace: "loopback",
-    } as RequestInit & { targetAddressSpace: "loopback" }
+      targetAddressSpace: "local",
+    } as RequestInit & { targetAddressSpace: "local" }
     void fetch(`${LOCAL_API}/mode`, options)
       .then(async (response) => {
         if (!response.ok) throw new Error("mode update failed")
@@ -405,8 +405,8 @@ export function Dashboard() {
       body: JSON.stringify(payload),
       cache: "no-store",
       mode: "cors",
-      targetAddressSpace: "loopback",
-    } as RequestInit & { targetAddressSpace: "loopback" }
+      targetAddressSpace: "local",
+    } as RequestInit & { targetAddressSpace: "local" }
     void fetch(`${LOCAL_API}/pomodoro`, options)
       .then(async (response) => {
         if (!response.ok) throw new Error("pomodoro update failed")
@@ -445,8 +445,8 @@ export function Dashboard() {
       body: JSON.stringify(payload),
       cache: "no-store",
       mode: "cors",
-      targetAddressSpace: "loopback",
-    } as RequestInit & { targetAddressSpace: "loopback" }
+      targetAddressSpace: "local",
+    } as RequestInit & { targetAddressSpace: "local" }
     void fetch(`${LOCAL_API}/timer`, options)
       .then(async (response) => {
         if (!response.ok) throw new Error("timer update failed")
@@ -481,8 +481,8 @@ export function Dashboard() {
       body: JSON.stringify({ action }),
       cache: "no-store",
       mode: "cors",
-      targetAddressSpace: "loopback",
-    } as RequestInit & { targetAddressSpace: "loopback" }
+      targetAddressSpace: "local",
+    } as RequestInit & { targetAddressSpace: "local" }
     void fetch(`${LOCAL_API}/stopwatch`, options)
       .then(async (response) => {
         if (!response.ok) throw new Error("stopwatch update failed")
