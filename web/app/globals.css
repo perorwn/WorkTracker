@@ -4,6 +4,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.theme-changing *, .theme-changing *::before, .theme-changing *::after {
+  transition: none !important;
+}
+
 @theme inline {
   --font-sans: var(--font-pretendard), "Pretendard", "Malgun Gothic", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;

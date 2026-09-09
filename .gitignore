@@ -2,3 +2,4 @@
 work_tracker.db
 __pycache__/
 .venv/
+web_static/

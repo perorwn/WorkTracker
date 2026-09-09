@@ -150,9 +150,13 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!themeReady) return
+    document.documentElement.classList.add('theme-changing')
     document.documentElement.classList.toggle("dark", theme === "dark")
     document.documentElement.classList.toggle("light", theme === "light")
     localStorage.setItem("worktracker-theme", theme)
+    const transitionTimer = window.setTimeout(() => {
+      document.documentElement.classList.remove('theme-changing')
+    }, 100)
     if (!windowModeRef.current) {
       const options = {
         method: "POST",
@@ -164,6 +168,7 @@ export function Dashboard() {
       } as RequestInit & { targetAddressSpace: "local" }
       void fetch(`${LOCAL_API}/window`, options).catch(() => undefined)
     }
+    return () => window.clearTimeout(transitionTimer)
   }, [theme, themeReady])
 
   const toggleTheme = () => setTheme((value) => value === "light" ? "dark" : "light")

@@ -13,10 +13,10 @@ import database
 
 
 WINDOW_TITLE = "WORK TRACKER"
-WINDOW_PROPERTY = "WorkTrackerNativeWindow"
+WINDOW_PROPERTY = "WorkTrackerLocalWindowV4"
 WINDOW_URL = os.environ.get(
     "WORKTRACKER_WINDOW_URL",
-    "https://perorwn.github.io/WorkTracker/?window=1&native=1",
+    "http://127.0.0.1:8765/?window=1&native=1",
 )
 EDGE_PROFILE_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "WorkTracker" / "EdgeProfile"
 MUTEX_NAME = "WorkTracker_NativeWindow_SingleInstance"

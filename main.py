@@ -6,7 +6,7 @@ import math
 import subprocess
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from ctypes import wintypes
 from datetime import datetime, timedelta
 
@@ -118,7 +118,10 @@ WINDOW_MODES = ("tracking", "pomodoro", "timer", "stopwatch")
 # 로컬 창모드 상태 API
 # ========================================
 
-class LiveStateHandler(BaseHTTPRequestHandler):
+class LiveStateHandler(SimpleHTTPRequestHandler):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=str(Path(__file__).with_name('web_static')), **kwargs)
 
     def _send_headers(self, status=200, content_type="application/json"):
         origin = self.headers.get("Origin", "")
@@ -154,7 +157,9 @@ class LiveStateHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
         if path != "/status":
-            self._send_headers(404)
+            if parsed.path.startswith('/WorkTracker/'):
+                self.path = self.path.replace('/WorkTracker/', '/', 1)
+            super().do_GET()
             return
         with live_state_lock:
             live_state["pomodoro"] = pomodoro_snapshot_locked()
