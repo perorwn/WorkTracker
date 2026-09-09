@@ -25,6 +25,8 @@ import type { StopwatchState } from "@/components/stopwatch-control"
 
 import { fetchWorkRow, fetchWorkRows, type WorkRow } from "@/lib/supabase"
 
+const LOCAL_API = "http://127.0.0.1:8765"
+
 type SelectedCell = { day: number; hour: number } | null
 type LocalStatus = {
   running: boolean
@@ -160,7 +162,7 @@ export function Dashboard() {
         mode: "cors",
         targetAddressSpace: "loopback",
       } as RequestInit & { targetAddressSpace: "loopback" }
-      void fetch("http://localhost:8765/window", options).catch(() => undefined)
+      void fetch(`${LOCAL_API}/window`, options).catch(() => undefined)
     }
   }, [theme, themeReady])
 
@@ -188,7 +190,7 @@ export function Dashboard() {
           mode: "cors",
           targetAddressSpace: "loopback",
         } as RequestInit & { targetAddressSpace: "loopback" }
-        const response = await fetch("http://localhost:8765/status", options)
+        const response = await fetch(`${LOCAL_API}/status`, options)
         if (!response.ok) throw new Error("tracker unavailable")
         const status = await response.json() as LocalStatus
         if (!status.running || !Array.isArray(status.hours) || status.hours.length !== 24) {
@@ -342,7 +344,7 @@ export function Dashboard() {
       mode: "cors",
       targetAddressSpace: "loopback",
     } as RequestInit & { targetAddressSpace: "loopback" }
-    await fetch("http://localhost:8765/window", options).catch(() => undefined)
+    await fetch(`${LOCAL_API}/window`, options).catch(() => undefined)
   }
 
   const changeWindowMode = (mode: WindowMode) => {
@@ -356,7 +358,7 @@ export function Dashboard() {
       mode: "cors",
       targetAddressSpace: "loopback",
     } as RequestInit & { targetAddressSpace: "loopback" }
-    void fetch("http://localhost:8765/mode", options)
+    void fetch(`${LOCAL_API}/mode`, options)
       .then(async (response) => {
         if (!response.ok) throw new Error("mode update failed")
         const result = await response.json() as { mode: WindowMode }
@@ -405,7 +407,7 @@ export function Dashboard() {
       mode: "cors",
       targetAddressSpace: "loopback",
     } as RequestInit & { targetAddressSpace: "loopback" }
-    void fetch("http://localhost:8765/pomodoro", options)
+    void fetch(`${LOCAL_API}/pomodoro`, options)
       .then(async (response) => {
         if (!response.ok) throw new Error("pomodoro update failed")
         const result = await response.json() as PomodoroState
@@ -445,7 +447,7 @@ export function Dashboard() {
       mode: "cors",
       targetAddressSpace: "loopback",
     } as RequestInit & { targetAddressSpace: "loopback" }
-    void fetch("http://localhost:8765/timer", options)
+    void fetch(`${LOCAL_API}/timer`, options)
       .then(async (response) => {
         if (!response.ok) throw new Error("timer update failed")
         const result = await response.json() as TimerState
@@ -481,7 +483,7 @@ export function Dashboard() {
       mode: "cors",
       targetAddressSpace: "loopback",
     } as RequestInit & { targetAddressSpace: "loopback" }
-    void fetch("http://localhost:8765/stopwatch", options)
+    void fetch(`${LOCAL_API}/stopwatch`, options)
       .then(async (response) => {
         if (!response.ok) throw new Error("stopwatch update failed")
         const result = await response.json() as StopwatchState
