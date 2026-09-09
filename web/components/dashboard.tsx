@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { PanelTopOpen } from "lucide-react"
 import {
@@ -20,6 +20,7 @@ import { WeekSummary } from "@/components/week-summary"
 import { ContributionGraph } from "@/components/contribution-graph"
 import { WindowDay } from "@/components/window-day"
 import { ThemeToggle, type Theme } from "@/components/theme-toggle"
+import { RecordStatus } from "@/components/record-status"
 
 import { fetchWorkRow, fetchWorkRows, type WorkRow } from "@/lib/supabase"
 
@@ -50,6 +51,7 @@ export function Dashboard() {
   const [pictureWindow, setPictureWindow] = useState<Window | null>(null)
   const [trackerAvailable, setTrackerAvailable] = useState(false)
   const [theme, setTheme] = useState<Theme>("light")
+  const lastRemoteSeconds = useRef<{ key: string; seconds: number } | null>(null)
   const currentWeekStart = useMemo(() => getWeekStart(today), [today])
 
   const [weekOffset, setWeekOffset] = useState(0)
@@ -173,7 +175,10 @@ export function Dashboard() {
         const row = await fetchWorkRow(endKey, currentHour, controller.signal)
         if (stopped) return
         const seconds = row?.seconds ?? 0
-        setIsLive(false)
+        const key = `${endKey}-${currentHour}`
+        const previous = lastRemoteSeconds.current
+        setIsLive(previous?.key === key && seconds > previous.seconds)
+        lastRemoteSeconds.current = { key, seconds }
         setCurrentSeconds(seconds)
         if (row) {
           setRows((existing) => {
@@ -319,9 +324,12 @@ export function Dashboard() {
     )}
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-5 sm:gap-8 sm:px-8 sm:py-14">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground text-balance">
-          작업 기록
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground text-balance">
+            작업 기록
+          </h1>
+          <RecordStatus working={isLive} />
+        </div>
         {trackerAvailable && <button
           type="button"
           onClick={() => void openWindowMode()}

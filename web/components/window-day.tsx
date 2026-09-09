@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils"
 import { formatDuration, HEAT_CLASS, intensityLevel } from "@/lib/work-data"
 import { FlipDuration } from "@/components/flip-duration"
+import { RecordStatus } from "@/components/record-status"
 
 interface WindowDayProps {
   date: Date
@@ -16,6 +17,13 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
 export function WindowDay({ date, hours, currentHour, currentSeconds, isLive }: WindowDayProps) {
   const totalMinutes = hours.reduce((sum, minutes) => sum + minutes, 0)
+  const totalWholeMinutes = Math.floor(totalMinutes)
+  const totalHours = Math.floor(totalWholeMinutes / 60)
+  const totalRemainder = totalWholeMinutes % 60
+  const totalLabel = [
+    totalHours ? `${totalHours}시간` : "",
+    totalRemainder ? `${totalRemainder}분` : "",
+  ].filter(Boolean).join(" ") || "0분"
   const dateLabel = date.toLocaleDateString("ko-KR", {
     month: "long",
     day: "numeric",
@@ -31,7 +39,7 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive }: 
             <h1 className="mt-1 text-lg font-semibold text-foreground">{dateLabel}</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            합계 <span className="ml-1 font-medium tabular-nums text-foreground">{formatDuration(totalMinutes)}</span>
+            합계 <span className="ml-1 font-medium tabular-nums text-foreground">{totalLabel}</span>
           </p>
         </div>
 
@@ -67,12 +75,7 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive }: 
       <aside className="relative flex w-52 shrink-0 items-center justify-center rounded-xl border border-border bg-card p-5">
         <div className="absolute top-5 right-5 left-5 flex items-center justify-between gap-2">
           <p className="text-xs font-medium text-muted-foreground">현재 시간 · {currentHour}시</p>
-          {isLive && (
-            <span className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              기록 중
-            </span>
-          )}
+          <RecordStatus working={isLive} />
         </div>
         <FlipDuration seconds={currentSeconds} />
       </aside>
