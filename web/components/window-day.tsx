@@ -76,7 +76,6 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive }: 
         <p className="text-3xl font-semibold tabular-nums text-foreground">
           {formatDuration(currentSeconds / 60)}
         </p>
-        <p className="text-[11px] text-muted-foreground">측정 프로그램과 직접 연결</p>
       </aside>
     </div>
   )
