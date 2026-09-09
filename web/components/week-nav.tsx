@@ -55,7 +55,7 @@ export function WeekNav({ rangeLabel, onPrev, onNext, onToday, isCurrentWeek }: 
             : "border-border bg-card text-foreground hover:bg-muted",
         )}
       >
-        {isCurrentWeek ? "이번 주" : "이번 주로"}
+        {isCurrentWeek ? "이번 주" : "이번 주 보기"}
       </button>
     </div>
   )

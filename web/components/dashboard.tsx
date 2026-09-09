@@ -358,7 +358,7 @@ export function Dashboard() {
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground" aria-live="polite">
-        <span suppressHydrationWarning>{loading ? "기록 불러오는 중…" : error ? error : updated ? `최근 갱신 ${updated.toLocaleTimeString()}${trackerAvailable ? " · 측정 프로그램 직접 연결" : " · 현재 시간 5초마다 갱신"}${rows.length ? "" : " · 저장된 기록이 없습니다"}` : ""}</span>
+        <span suppressHydrationWarning>{loading ? "기록 불러오는 중…" : error ? error : updated ? `최근 갱신 ${updated.toLocaleTimeString()}${trackerAvailable ? " · CLIP STUDIO PAINT 측정" : " · 현재 시간 5초마다 갱신"}${rows.length ? "" : " · 저장된 기록이 없습니다"}` : ""}</span>
         <button type="button" disabled={loading} onClick={() => setRetry(v => v + 1)} className="rounded-lg border border-border px-3 py-2 hover:bg-muted disabled:opacity-50">{error ? "다시 시도" : "새로고침"}</button>
       </div>
       {(!loadedRange || loadedRange.start > startKey || loadedRange.end < endKey) ? <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">{error ? "연결을 확인한 뒤 다시 시도해주세요." : "작업 기록을 불러오고 있습니다."}</div> : <>
