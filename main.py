@@ -5,6 +5,7 @@ import json
 import math
 import subprocess
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from ctypes import wintypes
 from datetime import datetime, timedelta
@@ -139,7 +140,20 @@ class LiveStateHandler(BaseHTTPRequestHandler):
         self._send_headers(204)
 
     def do_GET(self):
-        if self.path.rstrip("/") != "/status":
+        parsed = urlsplit(self.path)
+        path = parsed.path.rstrip("/")
+        if path == "/open":
+            query = parse_qs(parsed.query)
+            theme = query.get("theme", [None])[0]
+            payload = {"action": "open"}
+            if theme in ("light", "dark"):
+                payload["theme"] = theme
+            update_window(payload)
+            body = """<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\"><title>WORK TRACKER</title></head><body><p>WORK TRACKER 창을 여는 중입니다.</p><script>setTimeout(() => window.close(), 250)</script></body></html>""".encode("utf-8")
+            self._send_headers(200, "text/html")
+            self.wfile.write(body)
+            return
+        if path != "/status":
             self._send_headers(404)
             return
         with live_state_lock:

@@ -336,6 +336,17 @@ export function Dashboard() {
   }
 
   const openWindowMode = async () => {
+    const launcherUrl = `${LOCAL_API}/open?theme=${theme}&t=${Date.now()}`
+    const launcher = window.open(
+      launcherUrl,
+      "WorkTrackerLauncher",
+      "popup=yes,width=360,height=160,toolbar=no,location=no,menubar=no,status=no,resizable=no",
+    )
+    if (launcher) {
+      launcher.focus()
+      return
+    }
+
     const options = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
