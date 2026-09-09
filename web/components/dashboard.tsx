@@ -21,6 +21,8 @@ import { ContributionGraph } from "@/components/contribution-graph"
 import { WindowDay, type WindowMode } from "@/components/window-day"
 import { ThemeToggle, type Theme } from "@/components/theme-toggle"
 import { RecordStatus } from "@/components/record-status"
+import type { TimerState } from "@/components/timer-control"
+import type { StopwatchState } from "@/components/stopwatch-control"
 
 import { fetchWorkRow, fetchWorkRows, type WorkRow } from "@/lib/supabase"
 
@@ -37,8 +39,10 @@ type LocalStatus = {
   hours: number[]
   mode: WindowMode
   pomodoro: PomodoroState
+  timer: TimerState
+  stopwatch: StopwatchState
 }
-type PomodoroState = { duration: number; remaining: number; running: boolean }
+type PomodoroState = { duration: number; remaining: number; running: boolean; endsAt: number | null }
 
 export function Dashboard() {
   const [today, setToday] = useState(() => new Date())
@@ -55,10 +59,16 @@ export function Dashboard() {
   const [trackerAvailable, setTrackerAvailable] = useState(false)
   const [theme, setTheme] = useState<Theme>("light")
   const [activeWindowMode, setActiveWindowMode] = useState<WindowMode>("tracking")
-  const [pomodoro, setPomodoro] = useState<PomodoroState>({ duration: 1500, remaining: 1500, running: false })
+  const [pomodoro, setPomodoro] = useState<PomodoroState>({ duration: 1500, remaining: 1500, running: false, endsAt: null })
+  const [timerState, setTimerState] = useState<TimerState>({ duration: 0, remaining: 0, running: false, endsAt: null })
+  const [stopwatch, setStopwatch] = useState<StopwatchState>({ elapsed: 0, running: false, startedAt: null, baseElapsed: 0 })
   const pendingMode = useRef<WindowMode | null>(null)
   const pomodoroRequestId = useRef(0)
   const pomodoroRequestPending = useRef(false)
+  const timerRequestId = useRef(0)
+  const timerRequestPending = useRef(false)
+  const stopwatchRequestId = useRef(0)
+  const stopwatchRequestPending = useRef(false)
   const lastRemoteSeconds = useRef<{ key: string; seconds: number } | null>(null)
   const currentWeekStart = useMemo(() => getWeekStart(today), [today])
 
@@ -155,6 +165,8 @@ export function Dashboard() {
             if (pendingMode.current === null) setActiveWindowMode(status.mode)
           }
           if (status.pomodoro && !pomodoroRequestPending.current) setPomodoro(status.pomodoro)
+          if (status.timer && !timerRequestPending.current) setTimerState(status.timer)
+          if (status.stopwatch && !stopwatchRequestPending.current) setStopwatch(status.stopwatch)
           setRows((existing) => [
             ...existing.filter((row) => row.date !== status.date),
             ...status.hours.flatMap((seconds, hour) => seconds > 0
@@ -338,9 +350,17 @@ export function Dashboard() {
     const requestId = ++pomodoroRequestId.current
     pomodoroRequestPending.current = true
     if (payload.action === "set") {
-      setPomodoro({ duration: payload.seconds, remaining: payload.seconds, running: false })
+      setPomodoro({ duration: payload.seconds, remaining: payload.seconds, running: false, endsAt: null })
     } else {
-      setPomodoro((current) => ({ ...current, running: current.remaining > 0 && !current.running }))
+      setPomodoro((current) => {
+        if (current.running) {
+          const remaining = current.endsAt === null ? current.remaining : Math.max(0, Math.ceil((current.endsAt - Date.now()) / 1000))
+          return { ...current, remaining, running: false, endsAt: null }
+        }
+        return current.remaining > 0
+          ? { ...current, running: true, endsAt: Date.now() + current.remaining * 1000 }
+          : current
+      })
     }
     const options = {
       method: "POST",
@@ -364,6 +384,82 @@ export function Dashboard() {
       })
   }
 
+  const sendTimerAction = (payload: { action: "set"; seconds: number } | { action: "toggle" } | { action: "reset" }) => {
+    const requestId = ++timerRequestId.current
+    timerRequestPending.current = true
+    if (payload.action === "set") {
+      setTimerState({ duration: payload.seconds, remaining: payload.seconds, running: false, endsAt: null })
+    } else if (payload.action === "reset") {
+      setTimerState((current) => ({ ...current, remaining: current.duration, running: false, endsAt: null }))
+    } else {
+      setTimerState((current) => {
+        if (current.running) {
+          const remaining = current.endsAt === null ? current.remaining : Math.max(0, Math.ceil((current.endsAt - Date.now()) / 1000))
+          return { ...current, remaining, running: false, endsAt: null }
+        }
+        return current.remaining > 0
+          ? { ...current, running: true, endsAt: Date.now() + current.remaining * 1000 }
+          : current
+      })
+    }
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+      mode: "cors",
+      targetAddressSpace: "loopback",
+    } as RequestInit & { targetAddressSpace: "loopback" }
+    void fetch("http://localhost:8765/timer", options)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("timer update failed")
+        const result = await response.json() as TimerState
+        if (requestId === timerRequestId.current) {
+          timerRequestPending.current = false
+          setTimerState(result)
+        }
+      })
+      .catch(() => {
+        if (requestId === timerRequestId.current) timerRequestPending.current = false
+      })
+  }
+
+  const sendStopwatchAction = (action: "toggle" | "reset") => {
+    const requestId = ++stopwatchRequestId.current
+    stopwatchRequestPending.current = true
+    if (action === "reset") {
+      setStopwatch({ elapsed: 0, running: false, startedAt: null, baseElapsed: 0 })
+    } else {
+      setStopwatch((current) => {
+        if (current.running && current.startedAt !== null) {
+          const baseElapsed = current.baseElapsed + (Date.now() - current.startedAt) / 1000
+          return { elapsed: Math.floor(baseElapsed), running: false, startedAt: null, baseElapsed }
+        }
+        return { ...current, running: true, startedAt: Date.now(), baseElapsed: current.elapsed }
+      })
+    }
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+      cache: "no-store",
+      mode: "cors",
+      targetAddressSpace: "loopback",
+    } as RequestInit & { targetAddressSpace: "loopback" }
+    void fetch("http://localhost:8765/stopwatch", options)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("stopwatch update failed")
+        const result = await response.json() as StopwatchState
+        if (requestId === stopwatchRequestId.current) {
+          stopwatchRequestPending.current = false
+          setStopwatch(result)
+        }
+      })
+      .catch(() => {
+        if (requestId === stopwatchRequestId.current) stopwatchRequestPending.current = false
+      })
+  }
+
   if (isWindowMode === null) return <div className="h-screen bg-background" />
 
   if (isWindowMode) {
@@ -379,6 +475,13 @@ export function Dashboard() {
         pomodoro={pomodoro}
         onSetPomodoro={(seconds) => sendPomodoroAction({ action: "set", seconds })}
         onTogglePomodoro={() => sendPomodoroAction({ action: "toggle" })}
+        timer={timerState}
+        onSetTimer={(seconds) => sendTimerAction({ action: "set", seconds })}
+        onToggleTimer={() => sendTimerAction({ action: "toggle" })}
+        onResetTimer={() => sendTimerAction({ action: "reset" })}
+        stopwatch={stopwatch}
+        onToggleStopwatch={() => sendStopwatchAction("toggle")}
+        onResetStopwatch={() => sendStopwatchAction("reset")}
       />
     )
   }
@@ -397,6 +500,13 @@ export function Dashboard() {
         pomodoro={pomodoro}
         onSetPomodoro={(seconds) => sendPomodoroAction({ action: "set", seconds })}
         onTogglePomodoro={() => sendPomodoroAction({ action: "toggle" })}
+        timer={timerState}
+        onSetTimer={(seconds) => sendTimerAction({ action: "set", seconds })}
+        onToggleTimer={() => sendTimerAction({ action: "toggle" })}
+        onResetTimer={() => sendTimerAction({ action: "reset" })}
+        stopwatch={stopwatch}
+        onToggleStopwatch={() => sendStopwatchAction("toggle")}
+        onResetStopwatch={() => sendStopwatchAction("reset")}
       />,
       pictureWindow.document.body,
     )}

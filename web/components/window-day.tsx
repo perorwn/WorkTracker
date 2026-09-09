@@ -6,6 +6,8 @@ import { FlipDuration } from "@/components/flip-duration"
 import { RecordStatus } from "@/components/record-status"
 import { Activity, Hourglass, Timer } from "lucide-react"
 import { PomodoroDial } from "@/components/pomodoro-dial"
+import { TimerControl, type TimerState } from "@/components/timer-control"
+import { StopwatchControl, type StopwatchState } from "@/components/stopwatch-control"
 
 export type WindowMode = "tracking" | "pomodoro" | "timer" | "stopwatch"
 
@@ -17,9 +19,16 @@ interface WindowDayProps {
   isLive: boolean
   activeMode: WindowMode
   onModeChange: (mode: WindowMode) => void
-  pomodoro: { duration: number; remaining: number; running: boolean }
+  pomodoro: { duration: number; remaining: number; running: boolean; endsAt: number | null }
   onSetPomodoro: (seconds: number) => void
   onTogglePomodoro: () => void
+  timer: TimerState
+  onSetTimer: (seconds: number) => void
+  onToggleTimer: () => void
+  onResetTimer: () => void
+  stopwatch: StopwatchState
+  onToggleStopwatch: () => void
+  onResetStopwatch: () => void
 }
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
@@ -40,7 +49,7 @@ function FocusSessionIcon({ className }: { className?: string }) {
   )
 }
 
-export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, activeMode, onModeChange, pomodoro, onSetPomodoro, onTogglePomodoro }: WindowDayProps) {
+export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, activeMode, onModeChange, pomodoro, onSetPomodoro, onTogglePomodoro, timer, onSetTimer, onToggleTimer, onResetTimer, stopwatch, onToggleStopwatch, onResetStopwatch }: WindowDayProps) {
   const totalMinutes = hours.reduce((sum, minutes) => sum + minutes, 0)
   const currentTimeLabel = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
   const dateLabel = date.toLocaleDateString("ko-KR", {
@@ -125,15 +134,16 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, ac
           <PomodoroDial
             remaining={pomodoro.remaining}
             running={pomodoro.running}
+            endsAt={pomodoro.endsAt}
             onSetDuration={onSetPomodoro}
             onToggle={onTogglePomodoro}
           />
         )}
-        {(activeMode === "timer" || activeMode === "stopwatch") && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
-            {activeMode === "timer" ? <Hourglass className="h-7 w-7" /> : <Timer className="h-7 w-7" />}
-            <span className="text-xs">준비 중</span>
-          </div>
+        {activeMode === "timer" && (
+          <TimerControl timer={timer} onSet={onSetTimer} onToggle={onToggleTimer} onReset={onResetTimer} />
+        )}
+        {activeMode === "stopwatch" && (
+          <StopwatchControl stopwatch={stopwatch} onToggle={onToggleStopwatch} onReset={onResetStopwatch} />
         )}
       </aside>
     </div>

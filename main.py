@@ -48,6 +48,13 @@ pomodoro_duration_seconds = 25 * 60
 pomodoro_remaining_seconds = pomodoro_duration_seconds
 pomodoro_running = False
 pomodoro_ends_at = None
+timer_duration_seconds = 0
+timer_remaining_seconds = 0
+timer_running = False
+timer_ends_at = None
+stopwatch_elapsed_seconds = 0.0
+stopwatch_running = False
+stopwatch_started_at = None
 live_state = {
     "running": True,
     "working": False,
@@ -61,6 +68,19 @@ live_state = {
         "duration": pomodoro_duration_seconds,
         "remaining": pomodoro_remaining_seconds,
         "running": pomodoro_running,
+        "endsAt": None,
+    },
+    "timer": {
+        "duration": timer_duration_seconds,
+        "remaining": timer_remaining_seconds,
+        "running": timer_running,
+        "endsAt": None,
+    },
+    "stopwatch": {
+        "elapsed": 0,
+        "running": stopwatch_running,
+        "startedAt": None,
+        "baseElapsed": 0,
     },
 }
 
@@ -98,13 +118,15 @@ class LiveStateHandler(BaseHTTPRequestHandler):
             return
         with live_state_lock:
             live_state["pomodoro"] = pomodoro_snapshot_locked()
+            live_state["timer"] = timer_snapshot_locked()
+            live_state["stopwatch"] = stopwatch_snapshot_locked()
             payload = json.dumps(live_state, ensure_ascii=False).encode("utf-8")
         self._send_headers()
         self.wfile.write(payload)
 
     def do_POST(self):
         path = self.path.rstrip("/")
-        if path not in {"/mode", "/pomodoro"}:
+        if path not in {"/mode", "/pomodoro", "/timer", "/stopwatch"}:
             self._send_headers(404)
             return
         try:
@@ -121,9 +143,21 @@ class LiveStateHandler(BaseHTTPRequestHandler):
                 return
             set_window_mode(mode)
             result = {"mode": mode}
-        else:
+        elif path == "/pomodoro":
             try:
                 result = update_pomodoro(payload)
+            except (TypeError, ValueError):
+                self._send_headers(400)
+                return
+        elif path == "/timer":
+            try:
+                result = update_timer(payload)
+            except (TypeError, ValueError):
+                self._send_headers(400)
+                return
+        else:
+            try:
+                result = update_stopwatch(payload)
             except (TypeError, ValueError):
                 self._send_headers(400)
                 return
@@ -181,6 +215,7 @@ def pomodoro_snapshot_locked():
         "duration": pomodoro_duration_seconds,
         "remaining": pomodoro_remaining_seconds,
         "running": pomodoro_running,
+        "endsAt": int(pomodoro_ends_at * 1000) if pomodoro_running and pomodoro_ends_at else None,
     }
 
 
@@ -217,6 +252,104 @@ def update_pomodoro(payload):
 
         snapshot = pomodoro_snapshot_locked()
         live_state["pomodoro"] = snapshot
+        return snapshot
+
+
+def timer_snapshot_locked():
+    global timer_remaining_seconds
+    global timer_running
+    global timer_ends_at
+
+    if timer_running and timer_ends_at is not None:
+        timer_remaining_seconds = max(0, math.ceil(timer_ends_at - time.time()))
+        if timer_remaining_seconds == 0:
+            timer_running = False
+            timer_ends_at = None
+
+    return {
+        "duration": timer_duration_seconds,
+        "remaining": timer_remaining_seconds,
+        "running": timer_running,
+        "endsAt": int(timer_ends_at * 1000) if timer_running and timer_ends_at else None,
+    }
+
+
+def update_timer(payload):
+    global timer_duration_seconds
+    global timer_remaining_seconds
+    global timer_running
+    global timer_ends_at
+
+    action = payload.get("action")
+    with live_state_lock:
+        timer_snapshot_locked()
+
+        if action == "set":
+            seconds = int(payload.get("seconds", 0))
+            if not 0 <= seconds <= 99 * 3600 + 59 * 60 + 59:
+                raise ValueError("invalid duration")
+            timer_duration_seconds = seconds
+            timer_remaining_seconds = seconds
+            timer_running = False
+            timer_ends_at = None
+        elif action == "toggle":
+            if timer_running:
+                timer_running = False
+                timer_ends_at = None
+            else:
+                if timer_remaining_seconds <= 0:
+                    timer_remaining_seconds = timer_duration_seconds
+                if timer_remaining_seconds > 0:
+                    timer_running = True
+                    timer_ends_at = time.time() + timer_remaining_seconds
+        elif action == "reset":
+            timer_remaining_seconds = timer_duration_seconds
+            timer_running = False
+            timer_ends_at = None
+        else:
+            raise ValueError("invalid action")
+
+        snapshot = timer_snapshot_locked()
+        live_state["timer"] = snapshot
+        return snapshot
+
+
+def stopwatch_snapshot_locked():
+    elapsed = stopwatch_elapsed_seconds
+    if stopwatch_running and stopwatch_started_at is not None:
+        elapsed += time.time() - stopwatch_started_at
+    return {
+        "elapsed": max(0, math.floor(elapsed)),
+        "running": stopwatch_running,
+        "startedAt": int(stopwatch_started_at * 1000) if stopwatch_running and stopwatch_started_at else None,
+        "baseElapsed": stopwatch_elapsed_seconds,
+    }
+
+
+def update_stopwatch(payload):
+    global stopwatch_elapsed_seconds
+    global stopwatch_running
+    global stopwatch_started_at
+
+    action = payload.get("action")
+    with live_state_lock:
+        if action == "toggle":
+            if stopwatch_running:
+                stopwatch_elapsed_seconds += time.time() - stopwatch_started_at
+                stopwatch_running = False
+                stopwatch_started_at = None
+            else:
+                stopwatch_running = True
+                stopwatch_started_at = time.time()
+        elif action == "reset":
+            stopwatch_elapsed_seconds = 0.0
+            stopwatch_running = False
+            stopwatch_started_at = None
+        else:
+            raise ValueError("invalid action")
+
+        snapshot = stopwatch_snapshot_locked()
+        live_state["stopwatch"] = snapshot
         return snapshot
 
 

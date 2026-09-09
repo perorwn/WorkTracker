@@ -6,15 +6,24 @@ import { Pause, Play } from "lucide-react"
 interface PomodoroDialProps {
   remaining: number
   running: boolean
+  endsAt: number | null
   onSetDuration: (seconds: number) => void
   onToggle: () => void
 }
 
-export function PomodoroDial({ remaining, running, onSetDuration, onToggle }: PomodoroDialProps) {
+export function PomodoroDial({ remaining, running, endsAt, onSetDuration, onToggle }: PomodoroDialProps) {
   const dialRef = useRef<HTMLDivElement>(null)
   const draggingRef = useRef(false)
   const [dragging, setDragging] = useState(false)
   const [draftSeconds, setDraftSeconds] = useState(remaining)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!running || endsAt === null) return
+    setNow(Date.now())
+    const timer = window.setInterval(() => setNow(Date.now()), 100)
+    return () => window.clearInterval(timer)
+  }, [running, endsAt])
 
   useEffect(() => {
     if (!dragging) setDraftSeconds(remaining)
@@ -31,7 +40,10 @@ export function PomodoroDial({ remaining, running, onSetDuration, onToggle }: Po
     return next
   }
 
-  const displaySeconds = dragging ? draftSeconds : remaining
+  const liveSeconds = running && endsAt !== null
+    ? Math.max(0, Math.ceil((endsAt - now) / 1000))
+    : remaining
+  const displaySeconds = dragging ? draftSeconds : liveSeconds
   const displayMinutes = Math.ceil(displaySeconds / 60)
   const fillDegrees = Math.max(0, Math.min(360, displaySeconds / 10))
   const clockMinutes = Math.floor(displaySeconds / 60)
