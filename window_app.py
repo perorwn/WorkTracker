@@ -18,6 +18,7 @@ WINDOW_URL = os.environ.get(
     "WORKTRACKER_WINDOW_URL",
     "https://perorwn.github.io/WorkTracker/?window=1&native=1",
 )
+EDGE_PROFILE_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "WorkTracker" / "EdgeProfile"
 MUTEX_NAME = "WorkTracker_NativeWindow_SingleInstance"
 DEFAULT_WIDTH = 1000
 DEFAULT_HEIGHT = 260
@@ -43,6 +44,8 @@ user32.GetPropW.argtypes = [wintypes.HWND, wintypes.LPCWSTR]
 user32.GetPropW.restype = wintypes.HANDLE
 user32.SetPropW.argtypes = [wintypes.HWND, wintypes.LPCWSTR, wintypes.HANDLE]
 user32.SetPropW.restype = wintypes.BOOL
+user32.RemovePropW.argtypes = [wintypes.HWND, wintypes.LPCWSTR]
+user32.RemovePropW.restype = wintypes.HANDLE
 
 HWND_TOPMOST = -1
 HWND_NOTOPMOST = -2
@@ -113,43 +116,21 @@ def find_window(marker=WINDOW_TITLE, exact=True):
     return matches[0] if matches else None
 
 
-def repair_previous_title_match():
-    if database.get_setting("window_identity_version") == "2":
+def repair_previous_window_identity():
+    if database.get_setting("window_identity_version") == "3":
         return
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
-    saved_x = database.get_setting("window_x")
-    saved_y = database.get_setting("window_y")
-    saved_width = database.get_setting("window_width")
-    saved_height = database.get_setting("window_height")
-    try:
-        expected = tuple(map(int, (saved_x, saved_y, saved_width, saved_height)))
-    except (TypeError, ValueError):
-        expected = None
-
-    if expected is not None:
-        callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-
-        def visit(hwnd, _):
-            length = user32.GetWindowTextLengthW(hwnd)
-            if length <= 0:
-                return True
-            buffer = ctypes.create_unicode_buffer(length + 1)
-            user32.GetWindowTextW(hwnd, buffer, length + 1)
-            if buffer.value != WINDOW_TITLE or user32.GetPropW(hwnd, WINDOW_PROPERTY):
-                return True
-            rect = RECT()
-            if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-                return True
-            actual = (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
-            if all(abs(left - right) <= 4 for left, right in zip(actual, expected)):
-                user32.SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)
-                user32.ShowWindow(hwnd, SW_MAXIMIZE)
-                return False
+    def visit(hwnd, _):
+        if not user32.GetPropW(hwnd, WINDOW_PROPERTY):
             return True
+        user32.RemovePropW(hwnd, WINDOW_PROPERTY)
+        user32.SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)
+        user32.ShowWindow(hwnd, SW_MAXIMIZE)
+        return True
 
-        user32.EnumWindows(callback_type(visit), 0)
-
-    database.set_setting("window_identity_version", "2")
+    user32.EnumWindows(callback_type(visit), 0)
+    database.set_setting("window_identity_version", "3")
 
 
 def find_managed_window():
@@ -187,6 +168,7 @@ def window_url_with_token(token):
     parts = urlsplit(WINDOW_URL)
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
     query["windowToken"] = token
+    query["theme"] = database.get_setting("window_theme", "light")
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
@@ -252,7 +234,7 @@ def main():
         kernel32.CloseHandle(mutex)
         return
 
-    repair_previous_title_match()
+    repair_previous_window_identity()
     hwnd = find_managed_window()
     if hwnd is None:
         edge = find_edge()
@@ -262,8 +244,16 @@ def main():
 
         existing_chromium_windows = set(chromium_app_windows())
         window_token = uuid4().hex
+        EDGE_PROFILE_DIR.mkdir(parents=True, exist_ok=True)
         subprocess.Popen(
-            [edge, f"--app={window_url_with_token(window_token)}", "--new-window"],
+            [
+                edge,
+                f"--user-data-dir={EDGE_PROFILE_DIR}",
+                "--no-first-run",
+                "--disable-default-apps",
+                f"--app={window_url_with_token(window_token)}",
+                "--new-window",
+            ],
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
 

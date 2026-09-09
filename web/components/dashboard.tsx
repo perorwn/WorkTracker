@@ -37,6 +37,7 @@ type LocalStatus = {
   pomodoro: PomodoroState
   timer: TimerState
   stopwatch: StopwatchState
+  theme?: Theme
 }
 type PomodoroState = {
   duration: number
@@ -77,6 +78,7 @@ export function Dashboard() {
   const [timerState, setTimerState] = useState<TimerState>({ duration: 0, remaining: 0, running: false, endsAt: null })
   const [stopwatch, setStopwatch] = useState<StopwatchState>({ elapsed: 0, running: false, startedAt: null, baseElapsed: 0 })
   const pendingMode = useRef<WindowMode | null>(null)
+  const windowModeRef = useRef(false)
   const pomodoroRequestId = useRef(0)
   const pomodoroRequestPending = useRef(false)
   const timerRequestId = useRef(0)
@@ -114,6 +116,7 @@ export function Dashboard() {
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search)
     const windowMode = searchParams.get("window") === "1"
+    windowModeRef.current = windowMode
     setIsWindowMode(windowMode)
     if (!windowMode) return
     const previousTitle = document.title
@@ -132,8 +135,11 @@ export function Dashboard() {
   }, [])
 
   useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("theme")
     const saved = localStorage.getItem("worktracker-theme")
-    const initialTheme = saved === "dark" || saved === "light" ? saved : "light"
+    const initialTheme = requested === "dark" || requested === "light"
+      ? requested
+      : saved === "dark" || saved === "light" ? saved : "light"
     document.documentElement.classList.toggle("dark", initialTheme === "dark")
     document.documentElement.classList.toggle("light", initialTheme === "light")
     setTheme(initialTheme)
@@ -145,6 +151,17 @@ export function Dashboard() {
     document.documentElement.classList.toggle("dark", theme === "dark")
     document.documentElement.classList.toggle("light", theme === "light")
     localStorage.setItem("worktracker-theme", theme)
+    if (!windowModeRef.current) {
+      const options = {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "theme", theme }),
+        cache: "no-store",
+        mode: "cors",
+        targetAddressSpace: "loopback",
+      } as RequestInit & { targetAddressSpace: "loopback" }
+      void fetch("http://localhost:8765/window", options).catch(() => undefined)
+    }
   }, [theme, themeReady])
 
   const toggleTheme = () => setTheme((value) => value === "light" ? "dark" : "light")
@@ -191,6 +208,9 @@ export function Dashboard() {
           if (status.pomodoro && !pomodoroRequestPending.current) setPomodoro(status.pomodoro)
           if (status.timer && !timerRequestPending.current) setTimerState(status.timer)
           if (status.stopwatch && !stopwatchRequestPending.current) setStopwatch(status.stopwatch)
+          if (windowModeRef.current && (status.theme === "dark" || status.theme === "light")) {
+            setTheme(status.theme)
+          }
           setRows((existing) => [
             ...existing.filter((row) => row.date !== status.date),
             ...status.hours.flatMap((seconds, hour) => seconds > 0
@@ -317,7 +337,7 @@ export function Dashboard() {
     const options = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "open" }),
+      body: JSON.stringify({ action: "open", theme }),
       cache: "no-store",
       mode: "cors",
       targetAddressSpace: "loopback",

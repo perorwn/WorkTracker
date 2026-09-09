@@ -107,6 +107,7 @@ live_state = {
         "startedAt": None,
         "baseElapsed": 0,
     },
+    "theme": database.get_setting("window_theme", "light"),
 }
 
 WINDOW_MODES = ("tracking", "pomodoro", "timer", "stopwatch")
@@ -243,7 +244,20 @@ def launch_window_mode():
 def update_window(payload):
     action = payload.get("action")
     if action == "open":
+        theme = payload.get("theme")
+        if theme in ("light", "dark"):
+            database.set_setting("window_theme", theme)
+            with live_state_lock:
+                live_state["theme"] = theme
         return {"opened": launch_window_mode()}
+    if action == "theme":
+        theme = payload.get("theme")
+        if theme not in ("light", "dark"):
+            raise ValueError("invalid theme")
+        database.set_setting("window_theme", theme)
+        with live_state_lock:
+            live_state["theme"] = theme
+        return {"theme": theme}
     raise ValueError("invalid action")
 
 
