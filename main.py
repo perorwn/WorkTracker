@@ -41,17 +41,34 @@ sync_lock = threading.Lock()
 # 프로그램 상태
 # ========================================
 
+def load_int_setting(key, default, minimum, maximum):
+    try:
+        value = int(database.get_setting(key, default))
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, value))
+
 current_status = "시작 중"
 is_running = True
 live_state_lock = threading.Lock()
-pomodoro_duration_seconds = 25 * 60
+pomodoro_duration_seconds = load_int_setting(
+    "pomodoro_duration_seconds",
+    25 * 60,
+    0,
+    60 * 60,
+)
 pomodoro_remaining_seconds = pomodoro_duration_seconds
 pomodoro_running = False
 pomodoro_ends_at = None
-pomodoro_repeat = False
+pomodoro_repeat = database.get_setting("pomodoro_repeat", "0") == "1"
 pomodoro_phase = "work"
-timer_duration_seconds = 0
-timer_remaining_seconds = 0
+timer_duration_seconds = load_int_setting(
+    "timer_duration_seconds",
+    0,
+    0,
+    99 * 3600 + 59 * 60 + 59,
+)
+timer_remaining_seconds = timer_duration_seconds
 timer_running = False
 timer_ends_at = None
 stopwatch_elapsed_seconds = 0.0
@@ -260,6 +277,7 @@ def update_pomodoro(payload):
             pomodoro_running = False
             pomodoro_ends_at = None
             pomodoro_phase = "work"
+            database.set_setting("pomodoro_duration_seconds", seconds)
         elif action == "toggle":
             if pomodoro_running:
                 pomodoro_running = False
@@ -273,6 +291,7 @@ def update_pomodoro(payload):
                     pomodoro_ends_at = time.time() + pomodoro_remaining_seconds
         elif action == "repeat":
             pomodoro_repeat = bool(payload.get("enabled", False))
+            database.set_setting("pomodoro_repeat", "1" if pomodoro_repeat else "0")
         else:
             raise ValueError("invalid action")
 
@@ -318,6 +337,7 @@ def update_timer(payload):
             timer_remaining_seconds = seconds
             timer_running = False
             timer_ends_at = None
+            database.set_setting("timer_duration_seconds", seconds)
         elif action == "toggle":
             if timer_running:
                 timer_running = False

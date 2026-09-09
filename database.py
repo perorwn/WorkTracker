@@ -31,6 +31,50 @@ def initialize_database():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+# ========================================
+# 프로그램 설정
+# ========================================
+
+def get_setting(key, default=None):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT value
+    FROM app_settings
+    WHERE key = ?
+    """, (key,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    return row[0] if row is not None else default
+
+
+def set_setting(key, value):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    INSERT INTO app_settings (key, value)
+    VALUES (?, ?)
+    ON CONFLICT(key)
+    DO UPDATE SET value = excluded.value
+    """, (key, str(value)))
+
     conn.commit()
     conn.close()
 
