@@ -106,6 +106,23 @@ def find_window(marker=WINDOW_TITLE):
     return matches[0] if matches else None
 
 
+def chromium_app_windows():
+    matches = []
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def visit(hwnd, _):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        class_name = ctypes.create_unicode_buffer(256)
+        user32.GetClassNameW(hwnd, class_name, len(class_name))
+        if class_name.value == "Chrome_WidgetWin_1":
+            matches.append(hwnd)
+        return True
+
+    user32.EnumWindows(callback_type(visit), 0)
+    return matches
+
+
 def window_url_with_token(token):
     parts = urlsplit(WINDOW_URL)
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
@@ -186,6 +203,7 @@ def main():
         kernel32.CloseHandle(mutex)
         return
 
+    existing_chromium_windows = set(chromium_app_windows())
     window_token = uuid4().hex
     subprocess.Popen(
         [edge, f"--app={window_url_with_token(window_token)}", "--new-window"],
@@ -196,6 +214,14 @@ def main():
     deadline = time.time() + 20
     while time.time() < deadline and hwnd is None:
         hwnd = find_window(window_token)
+        if hwnd is None:
+            new_windows = [
+                candidate
+                for candidate in chromium_app_windows()
+                if candidate not in existing_chromium_windows
+            ]
+            if new_windows:
+                hwnd = new_windows[0]
         time.sleep(0.1)
 
     if hwnd is None:
