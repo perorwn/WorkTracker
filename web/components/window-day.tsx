@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { formatDuration, HEAT_CLASS, intensityLevel } from "@/lib/work-data"
+import { FlipDuration } from "@/components/flip-duration"
 
 interface WindowDayProps {
   date: Date
@@ -63,8 +64,8 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive }: 
         </div>
       </section>
 
-      <aside className="flex w-52 shrink-0 flex-col justify-between rounded-xl border border-border bg-card p-5">
-        <div className="flex items-center justify-between gap-2">
+      <aside className="relative flex w-52 shrink-0 items-center justify-center rounded-xl border border-border bg-card p-5">
+        <div className="absolute top-5 right-5 left-5 flex items-center justify-between gap-2">
           <p className="text-xs font-medium text-muted-foreground">현재 시간 · {currentHour}시</p>
           {isLive && (
             <span className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600">
@@ -73,9 +74,7 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive }: 
             </span>
           )}
         </div>
-        <p className="text-3xl font-semibold tabular-nums text-foreground">
-          {formatDuration(currentSeconds / 60)}
-        </p>
+        <FlipDuration seconds={currentSeconds} />
       </aside>
     </div>
   )

@@ -187,3 +187,98 @@
     @apply bg-background text-foreground;
   }
 }
+
+.split-flap-digit {
+  position: relative;
+  display: inline-block;
+  width: 2rem;
+  height: 3rem;
+  perspective: 240px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 1.85rem;
+  font-weight: 600;
+  line-height: 3rem;
+  color: #f5f5f4;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.split-flap-half {
+  position: absolute;
+  left: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 50%;
+  overflow: hidden;
+  background: #24262b;
+  border: 1px solid #393c43;
+  backface-visibility: hidden;
+}
+
+.split-flap-half > span {
+  display: block;
+  width: 100%;
+  height: 3rem;
+  line-height: 3rem;
+}
+
+.split-flap-top {
+  top: 0;
+  border-radius: 0.3rem 0.3rem 0.08rem 0.08rem;
+  border-bottom-color: #111216;
+}
+
+.split-flap-bottom {
+  bottom: 0;
+  border-radius: 0.08rem 0.08rem 0.3rem 0.3rem;
+  border-top-color: #111216;
+}
+
+.split-flap-bottom > span {
+  transform: translateY(-50%);
+}
+
+.split-flap-fold {
+  z-index: 3;
+  transform-origin: bottom;
+  animation: split-flap-fold 180ms ease-in forwards;
+}
+
+.split-flap-unfold {
+  z-index: 2;
+  transform-origin: top;
+  transform: rotateX(90deg);
+  animation: split-flap-unfold 180ms 180ms ease-out forwards;
+}
+
+.split-flap-colon {
+  display: inline-flex;
+  width: 0.65rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes split-flap-fold {
+  from { transform: rotateX(0deg); }
+  to { transform: rotateX(-90deg); }
+}
+
+@keyframes split-flap-unfold {
+  from { transform: rotateX(90deg); }
+  to { transform: rotateX(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .split-flap-fold,
+  .split-flap-unfold {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}
