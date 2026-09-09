@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { Pause, Play } from "lucide-react"
 
 interface PomodoroDialProps {
   remaining: number
@@ -33,10 +34,13 @@ export function PomodoroDial({ remaining, running, onSetDuration, onToggle }: Po
   const displaySeconds = dragging ? draftSeconds : remaining
   const displayMinutes = Math.ceil(displaySeconds / 60)
   const fillDegrees = Math.max(0, Math.min(360, displaySeconds / 10))
+  const clockMinutes = Math.floor(displaySeconds / 60)
+  const clockSeconds = Math.floor(displaySeconds % 60)
+  const clockLabel = `${String(clockMinutes).padStart(2, "0")}:${String(clockSeconds).padStart(2, "0")}`
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-2">
-      <p className="text-[11px] font-medium text-muted-foreground">뽀모도로</p>
+    <div className="relative flex h-full w-full items-center justify-center">
+      <p className="absolute top-0 left-0 text-[11px] font-medium text-muted-foreground">뽀모도로</p>
       <div
         ref={dialRef}
         role="slider"
@@ -73,22 +77,24 @@ export function PomodoroDial({ remaining, running, onSetDuration, onToggle }: Po
           onSetDuration(next)
         }}
       >
+        <span className="pomodoro-face" aria-hidden="true" />
         <span className="pomodoro-mark pomodoro-mark-top">0</span>
         <span className="pomodoro-mark pomodoro-mark-right">15</span>
         <span className="pomodoro-mark pomodoro-mark-bottom">30</span>
         <span className="pomodoro-mark pomodoro-mark-left">45</span>
         <span className="pomodoro-knob">
-          <strong className="font-mono text-xl tabular-nums">{String(displayMinutes).padStart(2, "0")}</strong>
-          <small>분</small>
+          <strong className="font-mono text-base font-semibold tabular-nums">{clockLabel}</strong>
         </span>
       </div>
       <button
         type="button"
         onClick={onToggle}
         disabled={!running && displaySeconds <= 0}
-        className="min-w-20 rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+        title={running ? "일시정지" : "시작"}
+        aria-label={running ? "뽀모도로 일시정지" : "뽀모도로 시작"}
+        className="absolute right-0 bottom-0 flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
       >
-        {running ? "일시정지" : "시작"}
+        {running ? <Pause className="h-4 w-4" fill="currentColor" aria-hidden /> : <Play className="h-4 w-4" fill="currentColor" aria-hidden />}
       </button>
     </div>
   )

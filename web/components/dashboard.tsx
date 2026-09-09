@@ -56,6 +56,9 @@ export function Dashboard() {
   const [theme, setTheme] = useState<Theme>("light")
   const [activeWindowMode, setActiveWindowMode] = useState<WindowMode>("tracking")
   const [pomodoro, setPomodoro] = useState<PomodoroState>({ duration: 1500, remaining: 1500, running: false })
+  const pendingMode = useRef<WindowMode | null>(null)
+  const pomodoroRequestId = useRef(0)
+  const pomodoroRequestPending = useRef(false)
   const lastRemoteSeconds = useRef<{ key: string; seconds: number } | null>(null)
   const currentWeekStart = useMemo(() => getWeekStart(today), [today])
 
@@ -148,9 +151,10 @@ export function Dashboard() {
           setCurrentSeconds(status.seconds)
           setIsLive(status.working)
           if (["tracking", "pomodoro", "timer", "stopwatch"].includes(status.mode)) {
-            setActiveWindowMode(status.mode)
+            if (pendingMode.current === status.mode) pendingMode.current = null
+            if (pendingMode.current === null) setActiveWindowMode(status.mode)
           }
-          if (status.pomodoro) setPomodoro(status.pomodoro)
+          if (status.pomodoro && !pomodoroRequestPending.current) setPomodoro(status.pomodoro)
           setRows((existing) => [
             ...existing.filter((row) => row.date !== status.date),
             ...status.hours.flatMap((seconds, hour) => seconds > 0
@@ -306,6 +310,7 @@ export function Dashboard() {
   }
 
   const changeWindowMode = (mode: WindowMode) => {
+    pendingMode.current = mode
     setActiveWindowMode(mode)
     const options = {
       method: "POST",
@@ -315,10 +320,23 @@ export function Dashboard() {
       mode: "cors",
       targetAddressSpace: "loopback",
     } as RequestInit & { targetAddressSpace: "loopback" }
-    void fetch("http://localhost:8765/mode", options).catch(() => undefined)
+    void fetch("http://localhost:8765/mode", options)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("mode update failed")
+        const result = await response.json() as { mode: WindowMode }
+        if (pendingMode.current === mode) {
+          pendingMode.current = null
+          setActiveWindowMode(result.mode)
+        }
+      })
+      .catch(() => {
+        if (pendingMode.current === mode) pendingMode.current = null
+      })
   }
 
   const sendPomodoroAction = (payload: { action: "set"; seconds: number } | { action: "toggle" }) => {
+    const requestId = ++pomodoroRequestId.current
+    pomodoroRequestPending.current = true
     if (payload.action === "set") {
       setPomodoro({ duration: payload.seconds, remaining: payload.seconds, running: false })
     } else {
@@ -334,9 +352,16 @@ export function Dashboard() {
     } as RequestInit & { targetAddressSpace: "loopback" }
     void fetch("http://localhost:8765/pomodoro", options)
       .then(async (response) => {
-        if (response.ok) setPomodoro(await response.json() as PomodoroState)
+        if (!response.ok) throw new Error("pomodoro update failed")
+        const result = await response.json() as PomodoroState
+        if (requestId === pomodoroRequestId.current) {
+          pomodoroRequestPending.current = false
+          setPomodoro(result)
+        }
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (requestId === pomodoroRequestId.current) pomodoroRequestPending.current = false
+      })
   }
 
   if (isWindowMode === null) return <div className="h-screen bg-background" />
