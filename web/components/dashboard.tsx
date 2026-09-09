@@ -37,7 +37,6 @@ type LocalStatus = {
   pomodoro: PomodoroState
   timer: TimerState
   stopwatch: StopwatchState
-  window: { onTop: boolean }
 }
 type PomodoroState = {
   duration: number
@@ -62,8 +61,8 @@ export function Dashboard() {
   const [isLive, setIsLive] = useState(false)
   const [isWindowMode, setIsWindowMode] = useState<boolean | null>(null)
   const [trackerAvailable, setTrackerAvailable] = useState(false)
-  const [windowOnTop, setWindowOnTop] = useState(true)
   const [theme, setTheme] = useState<Theme>("light")
+  const [themeReady, setThemeReady] = useState(false)
   const [activeWindowMode, setActiveWindowMode] = useState<WindowMode>("tracking")
   const [pomodoro, setPomodoro] = useState<PomodoroState>({
     duration: 1500,
@@ -120,11 +119,9 @@ export function Dashboard() {
     const previousTitle = document.title
     const previousOverflow = document.body.style.overflow
     const windowToken = searchParams.get("windowToken")
-    document.title = windowToken
-      ? `WORK TRACKER 창모드 · ${windowToken}`
-      : "WORK TRACKER 창모드"
+    document.title = windowToken ? `WORK TRACKER · ${windowToken}` : "WORK TRACKER"
     const titleTimer = windowToken
-      ? window.setTimeout(() => { document.title = "WORK TRACKER 창모드" }, 3000)
+      ? window.setTimeout(() => { document.title = "WORK TRACKER" }, 3000)
       : null
     document.body.style.overflow = "hidden"
     return () => {
@@ -136,14 +133,19 @@ export function Dashboard() {
 
   useEffect(() => {
     const saved = localStorage.getItem("worktracker-theme")
-    if (saved === "dark" || saved === "light") setTheme(saved)
+    const initialTheme = saved === "dark" || saved === "light" ? saved : "light"
+    document.documentElement.classList.toggle("dark", initialTheme === "dark")
+    document.documentElement.classList.toggle("light", initialTheme === "light")
+    setTheme(initialTheme)
+    setThemeReady(true)
   }, [])
 
   useEffect(() => {
+    if (!themeReady) return
     document.documentElement.classList.toggle("dark", theme === "dark")
     document.documentElement.classList.toggle("light", theme === "light")
     localStorage.setItem("worktracker-theme", theme)
-  }, [theme])
+  }, [theme, themeReady])
 
   const toggleTheme = () => setTheme((value) => value === "light" ? "dark" : "light")
 
@@ -189,7 +191,6 @@ export function Dashboard() {
           if (status.pomodoro && !pomodoroRequestPending.current) setPomodoro(status.pomodoro)
           if (status.timer && !timerRequestPending.current) setTimerState(status.timer)
           if (status.stopwatch && !stopwatchRequestPending.current) setStopwatch(status.stopwatch)
-          if (status.window) setWindowOnTop(status.window.onTop)
           setRows((existing) => [
             ...existing.filter((row) => row.date !== status.date),
             ...status.hours.flatMap((seconds, hour) => seconds > 0
@@ -322,20 +323,6 @@ export function Dashboard() {
       targetAddressSpace: "loopback",
     } as RequestInit & { targetAddressSpace: "loopback" }
     await fetch("http://localhost:8765/window", options).catch(() => undefined)
-  }
-
-  const toggleWindowOnTop = () => {
-    const enabled = !windowOnTop
-    setWindowOnTop(enabled)
-    const options = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "topmost", enabled }),
-      cache: "no-store",
-      mode: "cors",
-      targetAddressSpace: "loopback",
-    } as RequestInit & { targetAddressSpace: "loopback" }
-    void fetch("http://localhost:8765/window", options).catch(() => undefined)
   }
 
   const changeWindowMode = (mode: WindowMode) => {
@@ -511,8 +498,6 @@ export function Dashboard() {
         stopwatch={stopwatch}
         onToggleStopwatch={() => sendStopwatchAction("toggle")}
         onResetStopwatch={() => sendStopwatchAction("reset")}
-        windowOnTop={windowOnTop}
-        onToggleWindowOnTop={toggleWindowOnTop}
       />
     )
   }

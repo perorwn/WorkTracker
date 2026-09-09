@@ -107,9 +107,6 @@ live_state = {
         "startedAt": None,
         "baseElapsed": 0,
     },
-    "window": {
-        "onTop": database.get_setting("window_on_top", "1") == "1",
-    },
 }
 
 WINDOW_MODES = ("tracking", "pomodoro", "timer", "stopwatch")
@@ -247,12 +244,6 @@ def update_window(payload):
     action = payload.get("action")
     if action == "open":
         return {"opened": launch_window_mode()}
-    if action == "topmost":
-        enabled = bool(payload.get("enabled", True))
-        database.set_setting("window_on_top", "1" if enabled else "0")
-        with live_state_lock:
-            live_state["window"] = {"onTop": enabled}
-        return {"onTop": enabled}
     raise ValueError("invalid action")
 
 
@@ -435,6 +426,27 @@ def update_stopwatch(payload):
         return snapshot
 
 
+def trigger_current_mode_control(side):
+    with live_state_lock:
+        mode = live_state["mode"]
+        repeat_enabled = pomodoro_repeat
+
+    if side == "right":
+        if mode == "pomodoro":
+            update_pomodoro({"action": "toggle"})
+        elif mode == "timer":
+            update_timer({"action": "toggle"})
+        elif mode == "stopwatch":
+            update_stopwatch({"action": "toggle"})
+    elif side == "left":
+        if mode == "pomodoro":
+            update_pomodoro({"action": "repeat", "enabled": not repeat_enabled})
+        elif mode == "timer":
+            update_timer({"action": "reset"})
+        elif mode == "stopwatch":
+            update_stopwatch({"action": "reset"})
+
+
 def run_global_hotkeys():
     user32 = ctypes.windll.user32
     hotkey_base_id = 4100
@@ -453,16 +465,34 @@ def run_global_hotkeys():
         if not registered:
             print(f">>> Ctrl+Shift+F{index + 1} 단축키 등록 실패")
 
+    control_hotkeys = {
+        hotkey_base_id + 10: (0xBD, "-", "left"),   # VK_OEM_MINUS
+        hotkey_base_id + 11: (0xBB, "+", "right"),  # VK_OEM_PLUS
+    }
+    for hotkey_id, (virtual_key, label, _) in control_hotkeys.items():
+        registered = bool(user32.RegisterHotKey(
+            None,
+            hotkey_id,
+            modifiers,
+            virtual_key,
+        ))
+        registrations.append(registered)
+        if not registered:
+            print(f">>> Ctrl+Shift+{label} 단축키 등록 실패")
+
     with live_state_lock:
         live_state["hotkeys"] = registrations
 
     message = wintypes.MSG()
     while user32.GetMessageW(ctypes.byref(message), None, 0, 0) != 0:
         if message.message == 0x0312:  # WM_HOTKEY
-            index = int(message.wParam) - hotkey_base_id
+            hotkey_id = int(message.wParam)
+            index = hotkey_id - hotkey_base_id
             if 0 <= index < len(WINDOW_MODES):
                 set_window_mode(WINDOW_MODES[index])
                 launch_window_mode()
+            elif hotkey_id in control_hotkeys:
+                trigger_current_mode_control(control_hotkeys[hotkey_id][2])
 
 
 # ========================================

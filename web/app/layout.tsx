@@ -17,7 +17,7 @@ const pretendard = localFont({
 })
 
 export const metadata: Metadata = {
-  title: '작업 기록 — 클립 스튜디오',
+  title: 'WORK TRACKER',
   applicationName: 'WORK TRACKER',
   description:
     '클립 스튜디오 작업 시간을 주간·연간 그래프로 확인하세요.',

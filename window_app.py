@@ -12,7 +12,8 @@ from uuid import uuid4
 import database
 
 
-WINDOW_TITLE = "WORK TRACKER 창모드"
+WINDOW_TITLE = "WORK TRACKER"
+LEGACY_WINDOW_TITLE = "WORK TRACKER 창모드"
 WINDOW_URL = os.environ.get(
     "WORKTRACKER_WINDOW_URL",
     "https://perorwn.github.io/WorkTracker/?window=1&native=1",
@@ -40,7 +41,6 @@ user32.SetWindowPos.argtypes = [
 user32.SetWindowPos.restype = wintypes.BOOL
 
 HWND_TOPMOST = -1
-HWND_NOTOPMOST = -2
 SW_RESTORE = 9
 SWP_SHOWWINDOW = 0x0040
 SWP_NOZORDER = 0x0004
@@ -87,7 +87,7 @@ def find_edge():
     return shutil.which("msedge")
 
 
-def find_window(marker=WINDOW_TITLE):
+def find_window(marker=WINDOW_TITLE, exact=True):
     matches = []
     callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
@@ -97,13 +97,18 @@ def find_window(marker=WINDOW_TITLE):
             return True
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, length + 1)
-        if marker in buffer.value:
+        matches_marker = buffer.value == marker if exact else marker in buffer.value
+        if matches_marker:
             matches.append(hwnd)
             return False
         return True
 
     user32.EnumWindows(callback_type(visit), 0)
     return matches[0] if matches else None
+
+
+def find_managed_window():
+    return find_window(WINDOW_TITLE) or find_window(LEGACY_WINDOW_TITLE)
 
 
 def chromium_app_windows():
@@ -188,51 +193,46 @@ def save_bounds(hwnd):
 def main():
     mutex = kernel32.CreateMutexW(None, False, MUTEX_NAME)
     if kernel32.GetLastError() == 183:
-        bring_to_front(find_window())
+        bring_to_front(find_managed_window())
         kernel32.CloseHandle(mutex)
         return
 
-    existing = find_window()
-    if existing:
-        bring_to_front(existing)
-        kernel32.CloseHandle(mutex)
-        return
+    hwnd = find_managed_window()
+    if hwnd is None:
+        edge = find_edge()
+        if not edge:
+            kernel32.CloseHandle(mutex)
+            return
 
-    edge = find_edge()
-    if not edge:
-        kernel32.CloseHandle(mutex)
-        return
+        existing_chromium_windows = set(chromium_app_windows())
+        window_token = uuid4().hex
+        subprocess.Popen(
+            [edge, f"--app={window_url_with_token(window_token)}", "--new-window"],
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
 
-    existing_chromium_windows = set(chromium_app_windows())
-    window_token = uuid4().hex
-    subprocess.Popen(
-        [edge, f"--app={window_url_with_token(window_token)}", "--new-window"],
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-    )
-
-    hwnd = None
-    deadline = time.time() + 20
-    while time.time() < deadline and hwnd is None:
-        hwnd = find_window(window_token)
-        if hwnd is None:
-            new_windows = [
-                candidate
-                for candidate in chromium_app_windows()
-                if candidate not in existing_chromium_windows
-            ]
-            if new_windows:
-                hwnd = new_windows[0]
-        time.sleep(0.1)
+        deadline = time.time() + 20
+        while time.time() < deadline and hwnd is None:
+            hwnd = find_window(window_token, exact=False)
+            if hwnd is None:
+                new_windows = [
+                    candidate
+                    for candidate in chromium_app_windows()
+                    if candidate not in existing_chromium_windows
+                ]
+                if new_windows:
+                    hwnd = new_windows[0]
+            time.sleep(0.1)
 
     if hwnd is None:
         kernel32.CloseHandle(mutex)
         return
 
+    user32.SetWindowTextW(hwnd, WINDOW_TITLE)
     x, y, width, height = restored_bounds()
-    on_top = database.get_setting("window_on_top", "1") == "1"
     user32.SetWindowPos(
         hwnd,
-        HWND_TOPMOST if on_top else HWND_NOTOPMOST,
+        HWND_TOPMOST,
         x,
         y,
         width,
@@ -242,21 +242,7 @@ def main():
     bring_to_front(hwnd)
 
     last_bounds = None
-    last_on_top = on_top
     while user32.IsWindow(hwnd):
-        current_on_top = database.get_setting("window_on_top", "1") == "1"
-        if current_on_top != last_on_top:
-            user32.SetWindowPos(
-                hwnd,
-                HWND_TOPMOST if current_on_top else HWND_NOTOPMOST,
-                0,
-                0,
-                0,
-                0,
-                0x0001 | 0x0002 | 0x0010,
-            )
-            last_on_top = current_on_top
-
         rect = RECT()
         if not user32.IsIconic(hwnd) and user32.GetWindowRect(hwnd, ctypes.byref(rect)):
             bounds = (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)

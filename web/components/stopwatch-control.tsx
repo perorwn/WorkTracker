@@ -30,9 +30,13 @@ export function StopwatchControl({ stopwatch, onToggle, onReset }: StopwatchCont
 
   useEffect(() => {
     if (!stopwatch.running || stopwatch.startedAt === null) return
-    setNow(Date.now())
-    const interval = window.setInterval(() => setNow(Date.now()), 100)
-    return () => window.clearInterval(interval)
+    let frame = 0
+    const tick = () => {
+      setNow(Date.now())
+      frame = window.requestAnimationFrame(tick)
+    }
+    tick()
+    return () => window.cancelAnimationFrame(frame)
   }, [stopwatch.running, stopwatch.startedAt])
 
   const elapsed = stopwatch.running && stopwatch.startedAt !== null

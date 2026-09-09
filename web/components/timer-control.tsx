@@ -43,9 +43,13 @@ export function TimerControl({ timer, onSet, onToggle, onReset }: TimerControlPr
 
   useEffect(() => {
     if (!timer.running || timer.endsAt === null) return
-    setNow(Date.now())
-    const interval = window.setInterval(() => setNow(Date.now()), 100)
-    return () => window.clearInterval(interval)
+    let frame = 0
+    const tick = () => {
+      setNow(Date.now())
+      frame = window.requestAnimationFrame(tick)
+    }
+    tick()
+    return () => window.cancelAnimationFrame(frame)
   }, [timer.running, timer.endsAt])
 
   const remaining = timer.running && timer.endsAt !== null
