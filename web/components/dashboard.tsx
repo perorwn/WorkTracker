@@ -36,7 +36,9 @@ type LocalStatus = {
   seconds: number
   hours: number[]
   mode: WindowMode
+  pomodoro: PomodoroState
 }
+type PomodoroState = { duration: number; remaining: number; running: boolean }
 
 export function Dashboard() {
   const [today, setToday] = useState(() => new Date())
@@ -53,6 +55,7 @@ export function Dashboard() {
   const [trackerAvailable, setTrackerAvailable] = useState(false)
   const [theme, setTheme] = useState<Theme>("light")
   const [activeWindowMode, setActiveWindowMode] = useState<WindowMode>("tracking")
+  const [pomodoro, setPomodoro] = useState<PomodoroState>({ duration: 1500, remaining: 1500, running: false })
   const lastRemoteSeconds = useRef<{ key: string; seconds: number } | null>(null)
   const currentWeekStart = useMemo(() => getWeekStart(today), [today])
 
@@ -147,6 +150,7 @@ export function Dashboard() {
           if (["tracking", "pomodoro", "timer", "stopwatch"].includes(status.mode)) {
             setActiveWindowMode(status.mode)
           }
+          if (status.pomodoro) setPomodoro(status.pomodoro)
           setRows((existing) => [
             ...existing.filter((row) => row.date !== status.date),
             ...status.hours.flatMap((seconds, hour) => seconds > 0
@@ -276,7 +280,7 @@ export function Dashboard() {
 
     if (pictureInPicture) {
       try {
-        const nextWindow = await pictureInPicture.requestWindow({ width: 1180, height: 260 })
+        const nextWindow = await pictureInPicture.requestWindow({ width: 1000, height: 260 })
         document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
           nextWindow.document.head.appendChild(node.cloneNode(true))
         })
@@ -296,7 +300,7 @@ export function Dashboard() {
     const popup = window.open(
       url.toString(),
       "WorkTrackerWindow",
-      "popup=yes,width=1180,height=260,toolbar=no,location=no,menubar=no,status=no,scrollbars=no,resizable=yes",
+      "popup=yes,width=1000,height=260,toolbar=no,location=no,menubar=no,status=no,scrollbars=no,resizable=yes",
     )
     popup?.focus()
   }
@@ -314,6 +318,27 @@ export function Dashboard() {
     void fetch("http://localhost:8765/mode", options).catch(() => undefined)
   }
 
+  const sendPomodoroAction = (payload: { action: "set"; seconds: number } | { action: "toggle" }) => {
+    if (payload.action === "set") {
+      setPomodoro({ duration: payload.seconds, remaining: payload.seconds, running: false })
+    } else {
+      setPomodoro((current) => ({ ...current, running: current.remaining > 0 && !current.running }))
+    }
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+      mode: "cors",
+      targetAddressSpace: "loopback",
+    } as RequestInit & { targetAddressSpace: "loopback" }
+    void fetch("http://localhost:8765/pomodoro", options)
+      .then(async (response) => {
+        if (response.ok) setPomodoro(await response.json() as PomodoroState)
+      })
+      .catch(() => undefined)
+  }
+
   if (isWindowMode === null) return <div className="h-screen bg-background" />
 
   if (isWindowMode) {
@@ -326,6 +351,9 @@ export function Dashboard() {
         isLive={isLive}
         activeMode={activeWindowMode}
         onModeChange={changeWindowMode}
+        pomodoro={pomodoro}
+        onSetPomodoro={(seconds) => sendPomodoroAction({ action: "set", seconds })}
+        onTogglePomodoro={() => sendPomodoroAction({ action: "toggle" })}
       />
     )
   }
@@ -341,6 +369,9 @@ export function Dashboard() {
         isLive={isLive}
         activeMode={activeWindowMode}
         onModeChange={changeWindowMode}
+        pomodoro={pomodoro}
+        onSetPomodoro={(seconds) => sendPomodoroAction({ action: "set", seconds })}
+        onTogglePomodoro={() => sendPomodoroAction({ action: "toggle" })}
       />,
       pictureWindow.document.body,
     )}

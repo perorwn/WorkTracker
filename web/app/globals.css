@@ -81,6 +81,9 @@
   --flap-foreground: oklch(0.24 0.02 260);
   --flap-border: oklch(0.86 0.008 255);
   --flap-seam: oklch(0.78 0.01 255);
+  --pomodoro-track: oklch(0.93 0.008 255);
+  --pomodoro-knob: oklch(0.985 0.003 255);
+  --pomodoro-mark: oklch(0.32 0.02 260);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -126,6 +129,9 @@
   --flap-foreground: oklch(0.96 0.004 250);
   --flap-border: oklch(0.38 0.014 260);
   --flap-seam: oklch(0.12 0.01 260);
+  --pomodoro-track: oklch(0.28 0.014 260);
+  --pomodoro-knob: oklch(0.22 0.014 260);
+  --pomodoro-mark: oklch(0.88 0.01 250);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -171,6 +177,9 @@
     --flap-foreground: oklch(0.96 0.004 250);
     --flap-border: oklch(0.38 0.014 260);
     --flap-seam: oklch(0.12 0.01 260);
+    --pomodoro-track: oklch(0.28 0.014 260);
+    --pomodoro-knob: oklch(0.22 0.014 260);
+    --pomodoro-mark: oklch(0.88 0.01 250);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -290,3 +299,77 @@
     animation-delay: 0ms;
   }
 }
+
+.pomodoro-dial {
+  --pomodoro-fill: 150deg;
+  position: relative;
+  width: 8rem;
+  height: 8rem;
+  flex: 0 0 auto;
+  touch-action: none;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: conic-gradient(
+    from 0deg,
+    oklch(0.58 0.22 28) 0deg var(--pomodoro-fill),
+    var(--pomodoro-track) var(--pomodoro-fill) 360deg
+  );
+  box-shadow: inset 0 0 0 5px color-mix(in oklch, var(--card) 72%, transparent);
+  user-select: none;
+}
+
+.pomodoro-dial::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from -0.6deg,
+    color-mix(in oklch, var(--pomodoro-mark) 75%, transparent) 0deg 1.2deg,
+    transparent 1.2deg 6deg
+  );
+  -webkit-mask: radial-gradient(circle, transparent 0 58%, #000 59% 70%, transparent 71%);
+  mask: radial-gradient(circle, transparent 0 58%, #000 59% 70%, transparent 71%);
+  pointer-events: none;
+}
+
+.pomodoro-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: 3.7rem;
+  height: 3.7rem;
+  transform: translate(-50%, -50%);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--pomodoro-knob);
+  color: var(--foreground);
+  box-shadow: 0 3px 12px color-mix(in oklch, var(--foreground) 12%, transparent);
+  pointer-events: none;
+}
+
+.pomodoro-knob small {
+  margin-top: -0.2rem;
+  font-size: 0.55rem;
+  color: var(--muted-foreground);
+}
+
+.pomodoro-mark {
+  position: absolute;
+  z-index: 2;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.5rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--pomodoro-mark);
+  pointer-events: none;
+}
+
+.pomodoro-mark-top { top: 0.35rem; left: 50%; transform: translateX(-50%); }
+.pomodoro-mark-right { top: 50%; right: 0.25rem; transform: translateY(-50%); }
+.pomodoro-mark-bottom { bottom: 0.3rem; left: 50%; transform: translateX(-50%); }
+.pomodoro-mark-left { top: 50%; left: 0.25rem; transform: translateY(-50%); }

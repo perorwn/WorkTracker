@@ -2,6 +2,7 @@ import time
 import ctypes
 import threading
 import json
+import math
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from ctypes import wintypes
 from datetime import datetime, timedelta
@@ -43,6 +44,10 @@ sync_lock = threading.Lock()
 current_status = "시작 중"
 is_running = True
 live_state_lock = threading.Lock()
+pomodoro_duration_seconds = 25 * 60
+pomodoro_remaining_seconds = pomodoro_duration_seconds
+pomodoro_running = False
+pomodoro_ends_at = None
 live_state = {
     "running": True,
     "working": False,
@@ -52,6 +57,11 @@ live_state = {
     "hours": [0] * 24,
     "mode": "tracking",
     "hotkeys": [False] * 4,
+    "pomodoro": {
+        "duration": pomodoro_duration_seconds,
+        "remaining": pomodoro_remaining_seconds,
+        "running": pomodoro_running,
+    },
 }
 
 WINDOW_MODES = ("tracking", "pomodoro", "timer", "stopwatch")
@@ -87,26 +97,38 @@ class LiveStateHandler(BaseHTTPRequestHandler):
             self._send_headers(404)
             return
         with live_state_lock:
+            live_state["pomodoro"] = pomodoro_snapshot_locked()
             payload = json.dumps(live_state, ensure_ascii=False).encode("utf-8")
         self._send_headers()
         self.wfile.write(payload)
 
     def do_POST(self):
-        if self.path.rstrip("/") != "/mode":
+        path = self.path.rstrip("/")
+        if path not in {"/mode", "/pomodoro"}:
             self._send_headers(404)
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
-            mode = payload.get("mode")
         except (ValueError, json.JSONDecodeError, UnicodeDecodeError):
             self._send_headers(400)
             return
-        if mode not in WINDOW_MODES:
-            self._send_headers(400)
-            return
-        set_window_mode(mode)
-        response = json.dumps({"mode": mode}).encode("utf-8")
+
+        if path == "/mode":
+            mode = payload.get("mode")
+            if mode not in WINDOW_MODES:
+                self._send_headers(400)
+                return
+            set_window_mode(mode)
+            result = {"mode": mode}
+        else:
+            try:
+                result = update_pomodoro(payload)
+            except (TypeError, ValueError):
+                self._send_headers(400)
+                return
+
+        response = json.dumps(result).encode("utf-8")
         self._send_headers()
         self.wfile.write(response)
 
@@ -139,6 +161,63 @@ def update_live_state(now, working):
 def set_window_mode(mode):
     with live_state_lock:
         live_state["mode"] = mode
+
+
+def pomodoro_snapshot_locked():
+    global pomodoro_remaining_seconds
+    global pomodoro_running
+    global pomodoro_ends_at
+
+    if pomodoro_running and pomodoro_ends_at is not None:
+        pomodoro_remaining_seconds = max(
+            0,
+            math.ceil(pomodoro_ends_at - time.time()),
+        )
+        if pomodoro_remaining_seconds == 0:
+            pomodoro_running = False
+            pomodoro_ends_at = None
+
+    return {
+        "duration": pomodoro_duration_seconds,
+        "remaining": pomodoro_remaining_seconds,
+        "running": pomodoro_running,
+    }
+
+
+def update_pomodoro(payload):
+    global pomodoro_duration_seconds
+    global pomodoro_remaining_seconds
+    global pomodoro_running
+    global pomodoro_ends_at
+
+    action = payload.get("action")
+    with live_state_lock:
+        pomodoro_snapshot_locked()
+
+        if action == "set":
+            seconds = int(payload.get("seconds", 0))
+            if not 0 <= seconds <= 60 * 60:
+                raise ValueError("invalid duration")
+            pomodoro_duration_seconds = seconds
+            pomodoro_remaining_seconds = seconds
+            pomodoro_running = False
+            pomodoro_ends_at = None
+        elif action == "toggle":
+            if pomodoro_running:
+                pomodoro_running = False
+                pomodoro_ends_at = None
+            else:
+                if pomodoro_remaining_seconds <= 0:
+                    pomodoro_remaining_seconds = pomodoro_duration_seconds
+                if pomodoro_remaining_seconds > 0:
+                    pomodoro_running = True
+                    pomodoro_ends_at = time.time() + pomodoro_remaining_seconds
+        else:
+            raise ValueError("invalid action")
+
+        snapshot = pomodoro_snapshot_locked()
+        live_state["pomodoro"] = snapshot
+        return snapshot
 
 
 def run_global_hotkeys():

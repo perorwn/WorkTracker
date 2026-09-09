@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils"
 import { formatDuration, HEAT_CLASS, intensityLevel } from "@/lib/work-data"
 import { FlipDuration } from "@/components/flip-duration"
 import { RecordStatus } from "@/components/record-status"
-import { Activity, Focus, Hourglass, Timer } from "lucide-react"
+import { Activity, Hourglass, Timer } from "lucide-react"
+import { PomodoroDial } from "@/components/pomodoro-dial"
 
 export type WindowMode = "tracking" | "pomodoro" | "timer" | "stopwatch"
 
@@ -16,18 +17,30 @@ interface WindowDayProps {
   isLive: boolean
   activeMode: WindowMode
   onModeChange: (mode: WindowMode) => void
+  pomodoro: { duration: number; remaining: number; running: boolean }
+  onSetPomodoro: (seconds: number) => void
+  onTogglePomodoro: () => void
 }
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
 const MODE_ITEMS = [
   { mode: "tracking", label: "작업 시간 측정", shortcut: "F1", icon: Activity },
-  { mode: "pomodoro", label: "뽀모도로", shortcut: "F2", icon: Focus },
+  { mode: "pomodoro", label: "뽀모도로", shortcut: "F2", icon: FocusSessionIcon },
   { mode: "timer", label: "타이머", shortcut: "F3", icon: Hourglass },
   { mode: "stopwatch", label: "스톱워치", shortcut: "F4", icon: Timer },
 ] as const
 
-export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, activeMode, onModeChange }: WindowDayProps) {
+function FocusSessionIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="5.5" />
+      <path d="M12 2.5a9.5 9.5 0 0 1 6.72 2.78M21.5 12a9.5 9.5 0 0 1-2.78 6.72M12 21.5a9.5 9.5 0 0 1-6.72-2.78M2.5 12a9.5 9.5 0 0 1 2.78-6.72" />
+    </svg>
+  )
+}
+
+export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, activeMode, onModeChange, pomodoro, onSetPomodoro, onTogglePomodoro }: WindowDayProps) {
   const totalMinutes = hours.reduce((sum, minutes) => sum + minutes, 0)
   const currentTimeLabel = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
   const dateLabel = date.toLocaleDateString("ko-KR", {
@@ -37,7 +50,7 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, ac
   })
 
   return (
-    <div className="flex h-screen min-h-[210px] min-w-[980px] items-stretch gap-4 bg-background p-4">
+    <div className="flex h-screen min-h-[210px] min-w-[960px] items-stretch gap-4 bg-background p-4">
       <section className="flex min-w-0 flex-1 flex-col justify-between rounded-xl border border-border bg-card p-5">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -98,12 +111,30 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, ac
         ))}
       </nav>
 
-      <aside className="relative flex w-52 shrink-0 items-center justify-center rounded-xl border border-border bg-card p-5">
-        <div className="absolute top-5 right-5 left-5 flex items-center justify-between gap-2">
-          <p className="text-xs font-medium text-muted-foreground">현재 시간 · {currentTimeLabel}</p>
-          <RecordStatus working={isLive} />
-        </div>
-        <FlipDuration seconds={currentSeconds} />
+      <aside className="relative aspect-square h-full max-h-56 shrink-0 self-center rounded-xl border border-border bg-card p-4">
+        {activeMode === "tracking" && (
+          <div className="flex h-full items-center justify-center">
+            <div className="absolute top-5 right-5 left-5 flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-muted-foreground">현재 시간 · {currentTimeLabel}</p>
+              <RecordStatus working={isLive} />
+            </div>
+            <FlipDuration seconds={currentSeconds} />
+          </div>
+        )}
+        {activeMode === "pomodoro" && (
+          <PomodoroDial
+            remaining={pomodoro.remaining}
+            running={pomodoro.running}
+            onSetDuration={onSetPomodoro}
+            onToggle={onTogglePomodoro}
+          />
+        )}
+        {(activeMode === "timer" || activeMode === "stopwatch") && (
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+            {activeMode === "timer" ? <Hourglass className="h-7 w-7" /> : <Timer className="h-7 w-7" />}
+            <span className="text-xs">준비 중</span>
+          </div>
+        )}
       </aside>
     </div>
   )
