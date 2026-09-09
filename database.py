@@ -79,6 +79,22 @@ def set_setting(key, value):
     conn.close()
 
 
+def set_settings(values):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.executemany("""
+    INSERT INTO app_settings (key, value)
+    VALUES (?, ?)
+    ON CONFLICT(key)
+    DO UPDATE SET value = excluded.value
+    """, [(key, str(value)) for key, value in values.items()])
+
+    conn.commit()
+    conn.close()
+
+
 # ========================================
 # 작업시간 추가
 # ========================================

@@ -3,6 +3,8 @@ import ctypes
 import threading
 import json
 import math
+import subprocess
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from ctypes import wintypes
 from datetime import datetime, timedelta
@@ -105,6 +107,9 @@ live_state = {
         "startedAt": None,
         "baseElapsed": 0,
     },
+    "window": {
+        "onTop": database.get_setting("window_on_top", "1") == "1",
+    },
 }
 
 WINDOW_MODES = ("tracking", "pomodoro", "timer", "stopwatch")
@@ -149,7 +154,7 @@ class LiveStateHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.rstrip("/")
-        if path not in {"/mode", "/pomodoro", "/timer", "/stopwatch"}:
+        if path not in {"/mode", "/pomodoro", "/timer", "/stopwatch", "/window"}:
             self._send_headers(404)
             return
         try:
@@ -178,9 +183,15 @@ class LiveStateHandler(BaseHTTPRequestHandler):
             except (TypeError, ValueError):
                 self._send_headers(400)
                 return
-        else:
+        elif path == "/stopwatch":
             try:
                 result = update_stopwatch(payload)
+            except (TypeError, ValueError):
+                self._send_headers(400)
+                return
+        else:
+            try:
+                result = update_window(payload)
             except (TypeError, ValueError):
                 self._send_headers(400)
                 return
@@ -218,6 +229,31 @@ def update_live_state(now, working):
 def set_window_mode(mode):
     with live_state_lock:
         live_state["mode"] = mode
+
+
+def launch_window_mode():
+    script = Path(__file__).with_name("window_app.py")
+    if not script.is_file():
+        return False
+    subprocess.Popen(
+        [sys.executable, str(script)],
+        cwd=str(script.parent),
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    return True
+
+
+def update_window(payload):
+    action = payload.get("action")
+    if action == "open":
+        return {"opened": launch_window_mode()}
+    if action == "topmost":
+        enabled = bool(payload.get("enabled", True))
+        database.set_setting("window_on_top", "1" if enabled else "0")
+        with live_state_lock:
+            live_state["window"] = {"onTop": enabled}
+        return {"onTop": enabled}
+    raise ValueError("invalid action")
 
 
 def pomodoro_snapshot_locked():
@@ -426,6 +462,7 @@ def run_global_hotkeys():
             index = int(message.wParam) - hotkey_base_id
             if 0 <= index < len(WINDOW_MODES):
                 set_window_mode(WINDOW_MODES[index])
+                launch_window_mode()
 
 
 # ========================================
@@ -541,6 +578,10 @@ def quit_program(icon, item):
     icon.stop()
 
 
+def open_window_mode(icon=None, item=None):
+    launch_window_mode()
+
+
 def create_tray_icon():
 
     image = create_icon_image()
@@ -550,6 +591,11 @@ def create_tray_icon():
             "현재 상태",
             get_status_text,
             enabled=False
+        ),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(
+            "창모드 열기",
+            open_window_mode,
         ),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem(

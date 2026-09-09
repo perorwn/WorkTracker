@@ -22,3 +22,7 @@ GitHub 저장소의 Settings → Pages → Build and deployment → Source에서
 
 Actions에서 build와 deploy가 모두 초록색인지 확인하세요. Python 측정 프로그램은 기존처럼 PC에서 실행합니다.
 웹 데이터 로직 테스트는 통과했으며, 전체 빌드 결과는 Actions에서 확인할 수 있습니다.
+
+## Windows 창모드
+
+측정 프로그램이 실행 중일 때 웹의 `창모드` 버튼, 트레이 메뉴의 `창모드 열기`, 또는 `Ctrl+Shift+F1`~`F4`를 누르면 Microsoft Edge 앱 창으로 열립니다. 주소 표시줄 없이 일반 Windows 창으로 동작하며, 핀 버튼으로 항상 위 표시를 켜거나 끌 수 있습니다. 마지막 창 크기와 위치, 항상 위 설정은 다음 실행에도 유지됩니다.

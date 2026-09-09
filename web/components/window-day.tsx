@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 import { formatDuration, HEAT_CLASS, intensityLevel } from "@/lib/work-data"
 import { FlipDuration } from "@/components/flip-duration"
 import { RecordStatus } from "@/components/record-status"
-import { Activity, Hourglass, Timer } from "lucide-react"
+import { Activity, Hourglass, Pin, Timer } from "lucide-react"
 import { PomodoroDial } from "@/components/pomodoro-dial"
 import { TimerControl, type TimerState } from "@/components/timer-control"
 import { StopwatchControl, type StopwatchState } from "@/components/stopwatch-control"
@@ -39,6 +39,8 @@ interface WindowDayProps {
   stopwatch: StopwatchState
   onToggleStopwatch: () => void
   onResetStopwatch: () => void
+  windowOnTop: boolean
+  onToggleWindowOnTop: () => void
 }
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
@@ -60,7 +62,7 @@ function FocusSessionIcon({ className }: { className?: string }) {
   )
 }
 
-export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, activeMode, onModeChange, pomodoro, onSetPomodoro, onTogglePomodoro, onTogglePomodoroRepeat, timer, onSetTimer, onToggleTimer, onResetTimer, stopwatch, onToggleStopwatch, onResetStopwatch }: WindowDayProps) {
+export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, activeMode, onModeChange, pomodoro, onSetPomodoro, onTogglePomodoro, onTogglePomodoroRepeat, timer, onSetTimer, onToggleTimer, onResetTimer, stopwatch, onToggleStopwatch, onResetStopwatch, windowOnTop, onToggleWindowOnTop }: WindowDayProps) {
   const totalMinutes = hours.reduce((sum, minutes) => sum + minutes, 0)
   const currentTimeLabel = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
   const dateLabel = date.toLocaleDateString("ko-KR", {
@@ -77,9 +79,26 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, ac
             <p className="text-xs font-medium text-muted-foreground">오늘 기록</p>
             <h1 className="mt-1 text-lg font-semibold text-foreground">{dateLabel}</h1>
           </div>
-          <p className="text-sm text-muted-foreground">
-            합계 <span className="ml-1 font-medium tabular-nums text-foreground">{formatDuration(totalMinutes)}</span>
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-muted-foreground">
+              합계 <span className="ml-1 font-medium tabular-nums text-foreground">{formatDuration(totalMinutes)}</span>
+            </p>
+            <button
+              type="button"
+              onClick={onToggleWindowOnTop}
+              title={windowOnTop ? "항상 위 끄기" : "항상 위 켜기"}
+              aria-label={windowOnTop ? "항상 위 끄기" : "항상 위 켜기"}
+              aria-pressed={windowOnTop}
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-lg border transition-colors",
+                windowOnTop
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-muted text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Pin className="h-4 w-4" fill={windowOnTop ? "currentColor" : "none"} aria-hidden />
+            </button>
+          </div>
         </div>
 
         <div className="mt-5 grid [grid-template-columns:repeat(24,minmax(0,1fr))] gap-1.5">

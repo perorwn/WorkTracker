@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { createPortal } from "react-dom"
 import { PanelTopOpen } from "lucide-react"
 import {
   addDays,
@@ -27,9 +26,6 @@ import type { StopwatchState } from "@/components/stopwatch-control"
 import { fetchWorkRow, fetchWorkRows, type WorkRow } from "@/lib/supabase"
 
 type SelectedCell = { day: number; hour: number } | null
-type PictureInPictureApi = {
-  requestWindow: (options: { width: number; height: number }) => Promise<Window>
-}
 type LocalStatus = {
   running: boolean
   working: boolean
@@ -41,6 +37,7 @@ type LocalStatus = {
   pomodoro: PomodoroState
   timer: TimerState
   stopwatch: StopwatchState
+  window: { onTop: boolean }
 }
 type PomodoroState = {
   duration: number
@@ -64,8 +61,8 @@ export function Dashboard() {
   const [currentSeconds, setCurrentSeconds] = useState(0)
   const [isLive, setIsLive] = useState(false)
   const [isWindowMode, setIsWindowMode] = useState<boolean | null>(null)
-  const [pictureWindow, setPictureWindow] = useState<Window | null>(null)
   const [trackerAvailable, setTrackerAvailable] = useState(false)
+  const [windowOnTop, setWindowOnTop] = useState(true)
   const [theme, setTheme] = useState<Theme>("light")
   const [activeWindowMode, setActiveWindowMode] = useState<WindowMode>("tracking")
   const [pomodoro, setPomodoro] = useState<PomodoroState>({
@@ -116,14 +113,22 @@ export function Dashboard() {
   }, [rows, endKey, currentHour, currentSeconds])
 
   useEffect(() => {
-    const windowMode = new URLSearchParams(window.location.search).get("window") === "1"
+    const searchParams = new URLSearchParams(window.location.search)
+    const windowMode = searchParams.get("window") === "1"
     setIsWindowMode(windowMode)
     if (!windowMode) return
     const previousTitle = document.title
     const previousOverflow = document.body.style.overflow
-    document.title = "오늘 작업 기록"
+    const windowToken = searchParams.get("windowToken")
+    document.title = windowToken
+      ? `WORK TRACKER 창모드 · ${windowToken}`
+      : "WORK TRACKER 창모드"
+    const titleTimer = windowToken
+      ? window.setTimeout(() => { document.title = "WORK TRACKER 창모드" }, 3000)
+      : null
     document.body.style.overflow = "hidden"
     return () => {
+      if (titleTimer !== null) window.clearTimeout(titleTimer)
       document.title = previousTitle
       document.body.style.overflow = previousOverflow
     }
@@ -138,8 +143,7 @@ export function Dashboard() {
     document.documentElement.classList.toggle("dark", theme === "dark")
     document.documentElement.classList.toggle("light", theme === "light")
     localStorage.setItem("worktracker-theme", theme)
-    if (pictureWindow) pictureWindow.document.documentElement.className = document.documentElement.className
-  }, [theme, pictureWindow])
+  }, [theme])
 
   const toggleTheme = () => setTheme((value) => value === "light" ? "dark" : "light")
 
@@ -185,6 +189,7 @@ export function Dashboard() {
           if (status.pomodoro && !pomodoroRequestPending.current) setPomodoro(status.pomodoro)
           if (status.timer && !timerRequestPending.current) setTimerState(status.timer)
           if (status.stopwatch && !stopwatchRequestPending.current) setStopwatch(status.stopwatch)
+          if (status.window) setWindowOnTop(status.window.onTop)
           setRows((existing) => [
             ...existing.filter((row) => row.date !== status.date),
             ...status.hours.flatMap((seconds, hour) => seconds > 0
@@ -308,35 +313,29 @@ export function Dashboard() {
   }
 
   const openWindowMode = async () => {
-    const pictureInPicture = (window as Window & {
-      documentPictureInPicture?: PictureInPictureApi
-    }).documentPictureInPicture
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "open" }),
+      cache: "no-store",
+      mode: "cors",
+      targetAddressSpace: "loopback",
+    } as RequestInit & { targetAddressSpace: "loopback" }
+    await fetch("http://localhost:8765/window", options).catch(() => undefined)
+  }
 
-    if (pictureInPicture) {
-      try {
-        const nextWindow = await pictureInPicture.requestWindow({ width: 1000, height: 260 })
-        document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
-          nextWindow.document.head.appendChild(node.cloneNode(true))
-        })
-        nextWindow.document.documentElement.className = document.documentElement.className
-        nextWindow.document.body.className = document.body.className
-        nextWindow.document.body.style.margin = "0"
-        nextWindow.addEventListener("pagehide", () => setPictureWindow(null), { once: true })
-        setPictureWindow(nextWindow)
-        return
-      } catch {
-        // Fall through to a regular popup when the browser denies this mode.
-      }
-    }
-
-    const url = new URL(window.location.href)
-    url.search = "?window=1"
-    const popup = window.open(
-      url.toString(),
-      "WorkTrackerWindow",
-      "popup=yes,width=1000,height=260,toolbar=no,location=no,menubar=no,status=no,scrollbars=no,resizable=yes",
-    )
-    popup?.focus()
+  const toggleWindowOnTop = () => {
+    const enabled = !windowOnTop
+    setWindowOnTop(enabled)
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "topmost", enabled }),
+      cache: "no-store",
+      mode: "cors",
+      targetAddressSpace: "loopback",
+    } as RequestInit & { targetAddressSpace: "loopback" }
+    void fetch("http://localhost:8765/window", options).catch(() => undefined)
   }
 
   const changeWindowMode = (mode: WindowMode) => {
@@ -512,35 +511,14 @@ export function Dashboard() {
         stopwatch={stopwatch}
         onToggleStopwatch={() => sendStopwatchAction("toggle")}
         onResetStopwatch={() => sendStopwatchAction("reset")}
+        windowOnTop={windowOnTop}
+        onToggleWindowOnTop={toggleWindowOnTop}
       />
     )
   }
 
   return (
     <>
-    {pictureWindow && createPortal(
-      <WindowDay
-        date={today}
-        hours={todayHours}
-        currentHour={currentHour}
-        currentSeconds={currentSeconds}
-        isLive={isLive}
-        activeMode={activeWindowMode}
-        onModeChange={changeWindowMode}
-        pomodoro={pomodoro}
-        onSetPomodoro={(seconds) => sendPomodoroAction({ action: "set", seconds })}
-        onTogglePomodoro={() => sendPomodoroAction({ action: "toggle" })}
-        onTogglePomodoroRepeat={() => sendPomodoroAction({ action: "repeat", enabled: !pomodoro.repeat })}
-        timer={timerState}
-        onSetTimer={(seconds) => sendTimerAction({ action: "set", seconds })}
-        onToggleTimer={() => sendTimerAction({ action: "toggle" })}
-        onResetTimer={() => sendTimerAction({ action: "reset" })}
-        stopwatch={stopwatch}
-        onToggleStopwatch={() => sendStopwatchAction("toggle")}
-        onResetStopwatch={() => sendStopwatchAction("reset")}
-      />,
-      pictureWindow.document.body,
-    )}
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-5 sm:gap-8 sm:px-8 sm:py-14">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
