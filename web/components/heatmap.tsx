@@ -66,10 +66,10 @@ export function Heatmap({ data, weekStart, today, selected, onSelect }: HeatmapP
                         : "text-muted-foreground",
                   )}
                 >
-                  <span className="flex items-center gap-1.5">
+                  <span className="relative">
                     {label}
                     {isToday && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+                      <span className="absolute top-1/2 left-full ml-1.5 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-primary" aria-hidden />
                     )}
                   </span>
                 </div>

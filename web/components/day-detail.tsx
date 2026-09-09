@@ -64,7 +64,7 @@ export function DayDetail({ data, weekStart, selected }: DayDetailProps) {
       <div>
         <p className="text-[11px] font-medium tracking-normal text-muted-foreground">
           선택 시간&nbsp;
-          <span className="font-mono normal-case tracking-normal text-foreground">
+          <span className="font-mono normal-case tracking-normal text-muted-foreground">
             {formatHour(selected.hour)}
           </span>
         </p>
