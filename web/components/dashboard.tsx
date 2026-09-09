@@ -298,8 +298,6 @@ export function Dashboard() {
         currentHour={currentHour}
         currentSeconds={currentSeconds}
         isLive={isLive}
-        theme={theme}
-        onToggleTheme={toggleTheme}
       />
     )
   }
@@ -313,8 +311,6 @@ export function Dashboard() {
         currentHour={currentHour}
         currentSeconds={currentSeconds}
         isLive={isLive}
-        theme={theme}
-        onToggleTheme={toggleTheme}
       />,
       pictureWindow.document.body,
     )}

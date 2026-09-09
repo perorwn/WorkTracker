@@ -2,7 +2,6 @@
 
 import { cn } from "@/lib/utils"
 import { formatDuration, HEAT_CLASS, intensityLevel } from "@/lib/work-data"
-import { ThemeToggle, type Theme } from "@/components/theme-toggle"
 
 interface WindowDayProps {
   date: Date
@@ -10,13 +9,11 @@ interface WindowDayProps {
   currentHour: number
   currentSeconds: number
   isLive: boolean
-  theme: Theme
-  onToggleTheme: () => void
 }
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
-export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, theme, onToggleTheme }: WindowDayProps) {
+export function WindowDay({ date, hours, currentHour, currentSeconds, isLive }: WindowDayProps) {
   const totalMinutes = hours.reduce((sum, minutes) => sum + minutes, 0)
   const dateLabel = date.toLocaleDateString("ko-KR", {
     month: "long",
@@ -79,9 +76,8 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, th
         <p className="text-3xl font-semibold tabular-nums text-foreground">
           {formatDuration(currentSeconds / 60)}
         </p>
-        <p className="pr-8 text-[11px] text-muted-foreground">측정 프로그램과 직접 연결</p>
+        <p className="text-[11px] text-muted-foreground">측정 프로그램과 직접 연결</p>
       </aside>
-      <ThemeToggle theme={theme} onToggle={onToggleTheme} />
     </div>
   )
 }
