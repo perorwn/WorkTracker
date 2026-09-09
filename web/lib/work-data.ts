@@ -69,7 +69,7 @@ export function formatHour(hour: number): string {
 
 export function formatWeekRange(weekStart: Date): string {
   const end = addDays(weekStart, 6)
-  const shortDate = (d: Date) => `${d.getMonth() + 1}.${d.getDate()}`
+  const shortDate = (d: Date) => `${d.getMonth() + 1}. ${d.getDate()}`
   const start = `${weekStart.getFullYear()}. ${shortDate(weekStart)}`
   const finish = weekStart.getFullYear() === end.getFullYear()
     ? shortDate(end) : `${end.getFullYear()}. ${shortDate(end)}`

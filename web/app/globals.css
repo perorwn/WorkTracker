@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-jetbrains-mono), ui-monospace, monospace;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
   --color-heat-0: var(--heat-0);
   --color-heat-1: var(--heat-1);
@@ -263,24 +263,6 @@
   font-size: 1.5rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-}
-
-.split-flap-digit-small {
-  width: 1.45rem;
-  height: 2.2rem;
-  font-size: 1.25rem;
-  line-height: 2.2rem;
-}
-
-.split-flap-digit-small .split-flap-half > span {
-  height: 2.2rem;
-  line-height: 2.2rem;
-}
-
-.split-flap-colon-small {
-  width: 0.4rem;
-  height: 2.2rem;
-  font-size: 1rem;
 }
 
 @keyframes split-flap-fold {

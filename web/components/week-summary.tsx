@@ -1,4 +1,4 @@
-import { FlipDuration } from "@/components/flip-duration"
+import { formatDuration } from "@/lib/work-data"
 
 interface WeekSummaryProps {
   totalMinutes: number
@@ -11,12 +11,12 @@ export function WeekSummary({ totalMinutes }: WeekSummaryProps) {
     <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2">
       <Stat
         label="주간 합계"
-        seconds={totalMinutes * 60}
+        value={totalMinutes > 0 ? formatDuration(totalMinutes) : "0분"}
         emphasis
       />
       <Stat
         label="일평균"
-        seconds={dailyAverage * 60}
+        value={dailyAverage > 0 ? formatDuration(dailyAverage) : "—"}
       />
     </div>
   )
@@ -24,19 +24,20 @@ export function WeekSummary({ totalMinutes }: WeekSummaryProps) {
 
 function Stat({
   label,
-  seconds,
+  value,
   emphasis,
 }: {
   label: string
-  seconds: number
+  value: string
   emphasis?: boolean
 }) {
   return (
     <div className="bg-card p-4 sm:p-5">
       <p className="text-[11px] font-medium tracking-normal text-muted-foreground">{label}</p>
-      <div className={`mt-3 ${emphasis ? "opacity-100" : "opacity-90"}`}>
-        <FlipDuration seconds={seconds} showHours small />
-      </div>
+      <p className={emphasis
+        ? "mt-2 text-2xl font-semibold tabular-nums text-foreground"
+        : "mt-2 text-2xl font-semibold tabular-nums text-foreground/90"
+      }>{value}</p>
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { formatDuration, HEAT_CLASS, intensityLevel } from "@/lib/work-data"
-import { FlipDate, FlipDuration } from "@/components/flip-duration"
+import { FlipDuration } from "@/components/flip-duration"
 
 interface WindowDayProps {
   date: Date
@@ -16,6 +16,11 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
 export function WindowDay({ date, hours, currentHour, currentSeconds, isLive }: WindowDayProps) {
   const totalMinutes = hours.reduce((sum, minutes) => sum + minutes, 0)
+  const dateLabel = date.toLocaleDateString("ko-KR", {
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  })
 
   return (
     <div className="flex h-screen min-h-[210px] min-w-[980px] items-stretch gap-4 bg-background p-4">
@@ -23,12 +28,11 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive }: 
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-medium text-muted-foreground">오늘 기록</p>
-            <div className="mt-2"><FlipDate date={date} /></div>
+            <h1 className="mt-1 text-lg font-semibold text-foreground">{dateLabel}</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-muted-foreground">합계</span>
-            <FlipDuration seconds={totalMinutes * 60} showHours small />
-          </div>
+          <p className="text-sm text-muted-foreground">
+            합계 <span className="ml-1 font-medium tabular-nums text-foreground">{formatDuration(totalMinutes)}</span>
+          </p>
         </div>
 
         <div className="mt-5 grid [grid-template-columns:repeat(24,minmax(0,1fr))] gap-1.5">
