@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { PanelTopOpen } from "lucide-react"
 import {
@@ -19,12 +19,21 @@ import { WeekNav } from "@/components/week-nav"
 import { WeekSummary } from "@/components/week-summary"
 import { ContributionGraph } from "@/components/contribution-graph"
 import { WindowDay } from "@/components/window-day"
+import { ThemeToggle, type Theme } from "@/components/theme-toggle"
 
 import { fetchWorkRow, fetchWorkRows, type WorkRow } from "@/lib/supabase"
 
 type SelectedCell = { day: number; hour: number } | null
 type PictureInPictureApi = {
   requestWindow: (options: { width: number; height: number }) => Promise<Window>
+}
+type LocalStatus = {
+  running: boolean
+  working: boolean
+  date: string
+  hour: number
+  seconds: number
+  hours: number[]
 }
 
 export function Dashboard() {
@@ -39,7 +48,8 @@ export function Dashboard() {
   const [isLive, setIsLive] = useState(false)
   const [isWindowMode, setIsWindowMode] = useState<boolean | null>(null)
   const [pictureWindow, setPictureWindow] = useState<Window | null>(null)
-  const lastCurrentRow = useRef<{ key: string; seconds: number } | null>(null)
+  const [trackerAvailable, setTrackerAvailable] = useState(false)
+  const [theme, setTheme] = useState<Theme>("light")
   const currentWeekStart = useMemo(() => getWeekStart(today), [today])
 
   const [weekOffset, setWeekOffset] = useState(0)
@@ -57,7 +67,6 @@ export function Dashboard() {
   const startKey = dateKey(new Date(Math.min(addDays(today, -364).getTime(), weekStart.getTime())))
   const endKey = dateKey(today)
   const currentHour = today.getHours()
-  const currentRowKey = `${endKey}-${currentHour}`
   const todayHours = useMemo(() => {
     const hours = Array<number>(24).fill(0)
     for (const row of rows) if (row.date === endKey) hours[row.hour] += row.seconds / 60
@@ -80,14 +89,77 @@ export function Dashboard() {
   }, [])
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setToday(new Date())
-      if (isLive) setCurrentSeconds((seconds) => seconds + 1)
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [isLive])
+    const saved = localStorage.getItem("worktracker-theme")
+    if (saved === "dark" || saved === "light") setTheme(saved)
+  }, [])
 
   useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark")
+    document.documentElement.classList.toggle("light", theme === "light")
+    localStorage.setItem("worktracker-theme", theme)
+    if (pictureWindow) pictureWindow.document.documentElement.className = document.documentElement.className
+  }, [theme, pictureWindow])
+
+  const toggleTheme = () => setTheme((value) => value === "light" ? "dark" : "light")
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setToday(new Date())
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout>
+    let controller: AbortController
+    let lastSnapshot = ""
+
+    async function readLocalStatus() {
+      controller = new AbortController()
+      try {
+        const options = {
+          signal: controller.signal,
+          cache: "no-store",
+          mode: "cors",
+          targetAddressSpace: "loopback",
+        } as RequestInit & { targetAddressSpace: "loopback" }
+        const response = await fetch("http://localhost:8765/status", options)
+        if (!response.ok) throw new Error("tracker unavailable")
+        const status = await response.json() as LocalStatus
+        if (!status.running || !Array.isArray(status.hours) || status.hours.length !== 24) {
+          throw new Error("invalid tracker status")
+        }
+        if (stopped) return
+        setTrackerAvailable(true)
+        const snapshot = JSON.stringify(status)
+        if (snapshot !== lastSnapshot) {
+          lastSnapshot = snapshot
+          setCurrentSeconds(status.seconds)
+          setIsLive(status.working)
+          setRows((existing) => [
+            ...existing.filter((row) => row.date !== status.date),
+            ...status.hours.flatMap((seconds, hour) => seconds > 0
+              ? [{ date: status.date, hour, seconds }]
+              : []),
+          ])
+        }
+      } catch {
+        if (!stopped) {
+          setTrackerAvailable(false)
+          setIsLive(false)
+        }
+      } finally {
+        if (!stopped) timer = setTimeout(readLocalStatus, 500)
+      }
+    }
+
+    void readLocalStatus()
+    return () => { stopped = true; clearTimeout(timer); controller?.abort() }
+  }, [])
+
+  useEffect(() => {
+    if (trackerAvailable) return
     let stopped = false
     let timer: ReturnType<typeof setTimeout>
     let controller: AbortController
@@ -98,9 +170,7 @@ export function Dashboard() {
         const row = await fetchWorkRow(endKey, currentHour, controller.signal)
         if (stopped) return
         const seconds = row?.seconds ?? 0
-        const previous = lastCurrentRow.current
-        setIsLive(previous?.key === currentRowKey && seconds > previous.seconds)
-        lastCurrentRow.current = { key: currentRowKey, seconds }
+        setIsLive(false)
         setCurrentSeconds(seconds)
         if (row) {
           setRows((existing) => {
@@ -122,7 +192,7 @@ export function Dashboard() {
     setCurrentSeconds(0)
     void refreshCurrentHour()
     return () => { stopped = true; clearTimeout(timer); controller?.abort() }
-  }, [endKey, currentHour, currentRowKey])
+  }, [endKey, currentHour, trackerAvailable])
 
   useEffect(() => {
     let stopped = false
@@ -228,6 +298,8 @@ export function Dashboard() {
         currentHour={currentHour}
         currentSeconds={currentSeconds}
         isLive={isLive}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
     )
   }
@@ -241,6 +313,8 @@ export function Dashboard() {
         currentHour={currentHour}
         currentSeconds={currentSeconds}
         isLive={isLive}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />,
       pictureWindow.document.body,
     )}
@@ -249,14 +323,14 @@ export function Dashboard() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground text-balance">
           작업 기록
         </h1>
-        <button
+        {trackerAvailable && <button
           type="button"
           onClick={() => void openWindowMode()}
           className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
         >
           <PanelTopOpen className="h-4 w-4" aria-hidden />
           창모드
-        </button>
+        </button>}
       </div>
 
       <WeekNav
@@ -277,7 +351,7 @@ export function Dashboard() {
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground" aria-live="polite">
-        <span suppressHydrationWarning>{loading ? "기록 불러오는 중…" : error ? error : updated ? `최근 갱신 ${updated.toLocaleTimeString()} · 현재 시간 5초마다 갱신${rows.length ? "" : " · 저장된 기록이 없습니다"}` : ""}</span>
+        <span suppressHydrationWarning>{loading ? "기록 불러오는 중…" : error ? error : updated ? `최근 갱신 ${updated.toLocaleTimeString()}${trackerAvailable ? " · 측정 프로그램 직접 연결" : " · 현재 시간 5초마다 갱신"}${rows.length ? "" : " · 저장된 기록이 없습니다"}` : ""}</span>
         <button type="button" disabled={loading} onClick={() => setRetry(v => v + 1)} className="rounded-lg border border-border px-3 py-2 hover:bg-muted disabled:opacity-50">{error ? "다시 시도" : "새로고침"}</button>
       </div>
       {(!loadedRange || loadedRange.start > startKey || loadedRange.end < endKey) ? <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">{error ? "연결을 확인한 뒤 다시 시도해주세요." : "작업 기록을 불러오고 있습니다."}</div> : <>
@@ -311,6 +385,7 @@ export function Dashboard() {
       </div>
       </>}
     </div>
+    <ThemeToggle theme={theme} onToggle={toggleTheme} />
     </>
   )
 }

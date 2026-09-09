@@ -1,6 +1,8 @@
 import time
 import ctypes
 import threading
+import json
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from datetime import datetime, timedelta
 
 import database
@@ -39,6 +41,75 @@ sync_lock = threading.Lock()
 
 current_status = "시작 중"
 is_running = True
+live_state_lock = threading.Lock()
+live_state = {
+    "running": True,
+    "working": False,
+    "date": "",
+    "hour": 0,
+    "seconds": 0,
+    "hours": [0] * 24,
+}
+
+
+# ========================================
+# 로컬 창모드 상태 API
+# ========================================
+
+class LiveStateHandler(BaseHTTPRequestHandler):
+
+    def _send_headers(self, status=200, content_type="application/json"):
+        origin = self.headers.get("Origin", "")
+        self.send_response(status)
+        self.send_header("Content-Type", f"{content_type}; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        if origin in {
+            "https://perorwn.github.io",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        }:
+            self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
+    def do_OPTIONS(self):
+        self._send_headers(204)
+
+    def do_GET(self):
+        if self.path.rstrip("/") != "/status":
+            self._send_headers(404)
+            return
+        with live_state_lock:
+            payload = json.dumps(live_state, ensure_ascii=False).encode("utf-8")
+        self._send_headers()
+        self.wfile.write(payload)
+
+    def log_message(self, format, *args):
+        return
+
+
+def run_live_state_server():
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", 8765), LiveStateHandler)
+        server.serve_forever()
+    except OSError as error:
+        print(f">>> 로컬 창모드 서버 시작 실패: {error}")
+
+
+def update_live_state(now, working):
+    date = now.strftime("%Y-%m-%d")
+    hourly = database.get_hourly_data(date)
+    hours = [int(hourly.get(hour, 0)) for hour in range(24)]
+    with live_state_lock:
+        live_state.update({
+            "working": working,
+            "date": date,
+            "hour": now.hour,
+            "seconds": hours[now.hour],
+            "hours": hours,
+        })
 
 
 # ========================================
@@ -403,6 +474,8 @@ def tracking_loop():
                 f"현재 창: {title}"
             )
 
+        update_live_state(now, is_working)
+
         # --------------------------------
         # 상태 업데이트
         # --------------------------------
@@ -427,5 +500,12 @@ tracking_thread = threading.Thread(
 )
 
 tracking_thread.start()
+
+live_state_server_thread = threading.Thread(
+    target=run_live_state_server,
+    daemon=True,
+)
+
+live_state_server_thread.start()
 
 tray_icon.run()
