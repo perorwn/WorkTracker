@@ -13,7 +13,7 @@ import database
 
 
 WINDOW_TITLE = "WORK TRACKER"
-LEGACY_WINDOW_TITLE = "WORK TRACKER 창모드"
+WINDOW_PROPERTY = "WorkTrackerNativeWindow"
 WINDOW_URL = os.environ.get(
     "WORKTRACKER_WINDOW_URL",
     "https://perorwn.github.io/WorkTracker/?window=1&native=1",
@@ -39,9 +39,15 @@ user32.SetWindowPos.argtypes = [
     wintypes.UINT,
 ]
 user32.SetWindowPos.restype = wintypes.BOOL
+user32.GetPropW.argtypes = [wintypes.HWND, wintypes.LPCWSTR]
+user32.GetPropW.restype = wintypes.HANDLE
+user32.SetPropW.argtypes = [wintypes.HWND, wintypes.LPCWSTR, wintypes.HANDLE]
+user32.SetPropW.restype = wintypes.BOOL
 
 HWND_TOPMOST = -1
+HWND_NOTOPMOST = -2
 SW_RESTORE = 9
+SW_MAXIMIZE = 3
 SWP_SHOWWINDOW = 0x0040
 SWP_NOZORDER = 0x0004
 MONITOR_DEFAULTTONEAREST = 2
@@ -107,8 +113,57 @@ def find_window(marker=WINDOW_TITLE, exact=True):
     return matches[0] if matches else None
 
 
+def repair_previous_title_match():
+    if database.get_setting("window_identity_version") == "2":
+        return
+
+    saved_x = database.get_setting("window_x")
+    saved_y = database.get_setting("window_y")
+    saved_width = database.get_setting("window_width")
+    saved_height = database.get_setting("window_height")
+    try:
+        expected = tuple(map(int, (saved_x, saved_y, saved_width, saved_height)))
+    except (TypeError, ValueError):
+        expected = None
+
+    if expected is not None:
+        callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+        def visit(hwnd, _):
+            length = user32.GetWindowTextLengthW(hwnd)
+            if length <= 0:
+                return True
+            buffer = ctypes.create_unicode_buffer(length + 1)
+            user32.GetWindowTextW(hwnd, buffer, length + 1)
+            if buffer.value != WINDOW_TITLE or user32.GetPropW(hwnd, WINDOW_PROPERTY):
+                return True
+            rect = RECT()
+            if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+                return True
+            actual = (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+            if all(abs(left - right) <= 4 for left, right in zip(actual, expected)):
+                user32.SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)
+                user32.ShowWindow(hwnd, SW_MAXIMIZE)
+                return False
+            return True
+
+        user32.EnumWindows(callback_type(visit), 0)
+
+    database.set_setting("window_identity_version", "2")
+
+
 def find_managed_window():
-    return find_window(WINDOW_TITLE) or find_window(LEGACY_WINDOW_TITLE)
+    matches = []
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def visit(hwnd, _):
+        if user32.GetPropW(hwnd, WINDOW_PROPERTY):
+            matches.append(hwnd)
+            return False
+        return True
+
+    user32.EnumWindows(callback_type(visit), 0)
+    return matches[0] if matches else None
 
 
 def chromium_app_windows():
@@ -197,6 +252,7 @@ def main():
         kernel32.CloseHandle(mutex)
         return
 
+    repair_previous_title_match()
     hwnd = find_managed_window()
     if hwnd is None:
         edge = find_edge()
@@ -228,6 +284,7 @@ def main():
         kernel32.CloseHandle(mutex)
         return
 
+    user32.SetPropW(hwnd, WINDOW_PROPERTY, wintypes.HANDLE(1))
     user32.SetWindowTextW(hwnd, WINDOW_TITLE)
     x, y, width, height = restored_bounds()
     user32.SetWindowPos(
