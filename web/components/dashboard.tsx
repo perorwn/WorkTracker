@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import { PanelTopOpen } from "lucide-react"
 import {
   addDays,
   buildContributionData,
@@ -16,10 +18,14 @@ import { DayDetail } from "@/components/day-detail"
 import { WeekNav } from "@/components/week-nav"
 import { WeekSummary } from "@/components/week-summary"
 import { ContributionGraph } from "@/components/contribution-graph"
+import { WindowDay } from "@/components/window-day"
 
 import { fetchWorkRow, fetchWorkRows, type WorkRow } from "@/lib/supabase"
 
 type SelectedCell = { day: number; hour: number } | null
+type PictureInPictureApi = {
+  requestWindow: (options: { width: number; height: number }) => Promise<Window>
+}
 
 export function Dashboard() {
   const [today, setToday] = useState(() => new Date())
@@ -31,6 +37,8 @@ export function Dashboard() {
   const [retry, setRetry] = useState(0)
   const [currentSeconds, setCurrentSeconds] = useState(0)
   const [isLive, setIsLive] = useState(false)
+  const [isWindowMode, setIsWindowMode] = useState<boolean | null>(null)
+  const [pictureWindow, setPictureWindow] = useState<Window | null>(null)
   const lastCurrentRow = useRef<{ key: string; seconds: number } | null>(null)
   const currentWeekStart = useMemo(() => getWeekStart(today), [today])
 
@@ -50,6 +58,26 @@ export function Dashboard() {
   const endKey = dateKey(today)
   const currentHour = today.getHours()
   const currentRowKey = `${endKey}-${currentHour}`
+  const todayHours = useMemo(() => {
+    const hours = Array<number>(24).fill(0)
+    for (const row of rows) if (row.date === endKey) hours[row.hour] += row.seconds / 60
+    hours[currentHour] = currentSeconds / 60
+    return hours
+  }, [rows, endKey, currentHour, currentSeconds])
+
+  useEffect(() => {
+    const windowMode = new URLSearchParams(window.location.search).get("window") === "1"
+    setIsWindowMode(windowMode)
+    if (!windowMode) return
+    const previousTitle = document.title
+    const previousOverflow = document.body.style.overflow
+    document.title = "오늘 작업 기록"
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.title = previousTitle
+      document.body.style.overflow = previousOverflow
+    }
+  }, [])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -158,11 +186,78 @@ export function Dashboard() {
     setSelected({ day: dayIdx, hour: bestHour })
   }
 
+  const openWindowMode = async () => {
+    const pictureInPicture = (window as Window & {
+      documentPictureInPicture?: PictureInPictureApi
+    }).documentPictureInPicture
+
+    if (pictureInPicture) {
+      try {
+        const nextWindow = await pictureInPicture.requestWindow({ width: 1180, height: 260 })
+        document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
+          nextWindow.document.head.appendChild(node.cloneNode(true))
+        })
+        nextWindow.document.documentElement.className = document.documentElement.className
+        nextWindow.document.body.className = document.body.className
+        nextWindow.document.body.style.margin = "0"
+        nextWindow.addEventListener("pagehide", () => setPictureWindow(null), { once: true })
+        setPictureWindow(nextWindow)
+        return
+      } catch {
+        // Fall through to a regular popup when the browser denies this mode.
+      }
+    }
+
+    const url = new URL(window.location.href)
+    url.search = "?window=1"
+    const popup = window.open(
+      url.toString(),
+      "WorkTrackerWindow",
+      "popup=yes,width=1180,height=260,toolbar=no,location=no,menubar=no,status=no,scrollbars=no,resizable=yes",
+    )
+    popup?.focus()
+  }
+
+  if (isWindowMode === null) return <div className="h-screen bg-background" />
+
+  if (isWindowMode) {
+    return (
+      <WindowDay
+        date={today}
+        hours={todayHours}
+        currentHour={currentHour}
+        currentSeconds={currentSeconds}
+        isLive={isLive}
+      />
+    )
+  }
+
   return (
+    <>
+    {pictureWindow && createPortal(
+      <WindowDay
+        date={today}
+        hours={todayHours}
+        currentHour={currentHour}
+        currentSeconds={currentSeconds}
+        isLive={isLive}
+      />,
+      pictureWindow.document.body,
+    )}
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-5 sm:gap-8 sm:px-8 sm:py-14">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground text-balance">
-        작업 기록
-      </h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground text-balance">
+          작업 기록
+        </h1>
+        <button
+          type="button"
+          onClick={() => void openWindowMode()}
+          className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <PanelTopOpen className="h-4 w-4" aria-hidden />
+          창모드
+        </button>
+      </div>
 
       <WeekNav
         rangeLabel={formatWeekRange(weekStart)}
@@ -216,5 +311,6 @@ export function Dashboard() {
       </div>
       </>}
     </div>
+    </>
   )
 }
