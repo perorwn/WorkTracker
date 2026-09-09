@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { JetBrains_Mono } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
@@ -7,6 +8,12 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-jetbrains-mono',
+})
+const pretendard = localFont({
+  src: './fonts/PretendardVariable.woff2',
+  variable: '--font-pretendard',
+  display: 'swap',
+  weight: '45 920',
 })
 
 export const metadata: Metadata = {
@@ -34,9 +41,9 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${jetbrainsMono.variable} bg-background`}
+      className={`${pretendard.variable} ${jetbrainsMono.variable} bg-background`}
     >
-      <body className="font-mono antialiased">
+      <body className="font-sans antialiased">
         {children}
       </body>
     </html>
