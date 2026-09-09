@@ -265,6 +265,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+.split-flap-digit-small {
+  width: 1.45rem;
+  height: 2.2rem;
+  font-size: 1.25rem;
+  line-height: 2.2rem;
+}
+
+.split-flap-digit-small .split-flap-half > span {
+  height: 2.2rem;
+  line-height: 2.2rem;
+}
+
+.split-flap-colon-small {
+  width: 0.4rem;
+  height: 2.2rem;
+  font-size: 1rem;
+}
+
 @keyframes split-flap-fold {
   from { transform: rotateX(0deg); }
   to { transform: rotateX(-90deg); }

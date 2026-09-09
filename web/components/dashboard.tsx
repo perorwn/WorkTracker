@@ -53,7 +53,10 @@ export function Dashboard() {
   const currentWeekStart = useMemo(() => getWeekStart(today), [today])
 
   const [weekOffset, setWeekOffset] = useState(0)
-  const [selected, setSelected] = useState<SelectedCell>(null)
+  const [selected, setSelected] = useState<SelectedCell>(() => {
+    const now = new Date()
+    return { day: mondayIndex(now), hour: now.getHours() }
+  })
 
   const weekStart = useMemo(
     () => addDays(currentWeekStart, weekOffset * 7),
@@ -351,7 +354,7 @@ export function Dashboard() {
         <button type="button" disabled={loading} onClick={() => setRetry(v => v + 1)} className="rounded-lg border border-border px-3 py-2 hover:bg-muted disabled:opacity-50">{error ? "다시 시도" : "새로고침"}</button>
       </div>
       {(!loadedRange || loadedRange.start > startKey || loadedRange.end < endKey) ? <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">{error ? "연결을 확인한 뒤 다시 시도해주세요." : "작업 기록을 불러오고 있습니다."}</div> : <>
-      <WeekSummary totalMinutes={total} currentSeconds={currentSeconds} currentHour={currentHour} isLive={isLive} />
+      <WeekSummary totalMinutes={total} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_20rem]">
         <section

@@ -1,31 +1,22 @@
-import { formatDuration } from "@/lib/work-data"
+import { FlipDuration } from "@/components/flip-duration"
 
 interface WeekSummaryProps {
   totalMinutes: number
-  currentSeconds: number
-  currentHour: number
-  isLive: boolean
 }
 
-export function WeekSummary({ totalMinutes, currentSeconds, currentHour, isLive }: WeekSummaryProps) {
+export function WeekSummary({ totalMinutes }: WeekSummaryProps) {
   const dailyAverage = totalMinutes / 7
 
   return (
-    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3">
-      <Stat
-        label={`현재 시간 · ${currentHour}시`}
-        value={currentSeconds > 0 ? formatDuration(currentSeconds / 60) : "0분"}
-        emphasis
-        live={isLive}
-        className="col-span-2 sm:col-span-1"
-      />
+    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2">
       <Stat
         label="주간 합계"
-        value={totalMinutes > 0 ? formatDuration(totalMinutes) : "0분"}
+        seconds={totalMinutes * 60}
+        emphasis
       />
       <Stat
         label="일평균"
-        value={dailyAverage > 0 ? formatDuration(dailyAverage) : "—"}
+        seconds={dailyAverage * 60}
       />
     </div>
   )
@@ -33,32 +24,19 @@ export function WeekSummary({ totalMinutes, currentSeconds, currentHour, isLive 
 
 function Stat({
   label,
-  value,
+  seconds,
   emphasis,
-  live,
-  className = "",
 }: {
   label: string
-  value: string
+  seconds: number
   emphasis?: boolean
-  live?: boolean
-  className?: string
 }) {
   return (
-    <div className={`bg-card p-4 sm:p-5 ${className}`}>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-medium tracking-normal text-muted-foreground">{label}</p>
-        {live && <span className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />기록 중</span>}
+    <div className="bg-card p-4 sm:p-5">
+      <p className="text-[11px] font-medium tracking-normal text-muted-foreground">{label}</p>
+      <div className={`mt-3 ${emphasis ? "opacity-100" : "opacity-90"}`}>
+        <FlipDuration seconds={seconds} showHours small />
       </div>
-      <p
-        className={
-          emphasis
-            ? "mt-2 text-2xl font-semibold tabular-nums text-foreground"
-            : "mt-2 text-2xl font-semibold tabular-nums text-foreground/90"
-        }
-      >
-        {value}
-      </p>
     </div>
   )
 }
