@@ -534,14 +534,14 @@ export function Dashboard() {
           </h1>
           <RecordStatus working={isLive} />
         </div>
-        {trackerAvailable && <button
+        <button
           type="button"
           onClick={() => void openWindowMode()}
           className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
         >
           <PanelTopOpen className="h-4 w-4" aria-hidden />
           창모드
-        </button>}
+        </button>
       </div>
 
       <WeekNav
