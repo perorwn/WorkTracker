@@ -19,9 +19,19 @@ interface WindowDayProps {
   isLive: boolean
   activeMode: WindowMode
   onModeChange: (mode: WindowMode) => void
-  pomodoro: { duration: number; remaining: number; running: boolean; endsAt: number | null }
+  pomodoro: {
+    duration: number
+    remaining: number
+    running: boolean
+    endsAt: number | null
+    repeat: boolean
+    phase: "work" | "break"
+    workDuration: number
+    breakDuration: number
+  }
   onSetPomodoro: (seconds: number) => void
   onTogglePomodoro: () => void
+  onTogglePomodoroRepeat: () => void
   timer: TimerState
   onSetTimer: (seconds: number) => void
   onToggleTimer: () => void
@@ -44,12 +54,13 @@ function FocusSessionIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" className={className} aria-hidden="true">
       <circle cx="12" cy="12" r="5.5" />
+      <path d="M12 12V6.5a5.5 5.5 0 0 1 4.76 8.25Z" fill="currentColor" stroke="none" />
       <path d="M12 2.5a9.5 9.5 0 0 1 6.72 2.78M21.5 12a9.5 9.5 0 0 1-2.78 6.72M12 21.5a9.5 9.5 0 0 1-6.72-2.78M2.5 12a9.5 9.5 0 0 1 2.78-6.72" />
     </svg>
   )
 }
 
-export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, activeMode, onModeChange, pomodoro, onSetPomodoro, onTogglePomodoro, timer, onSetTimer, onToggleTimer, onResetTimer, stopwatch, onToggleStopwatch, onResetStopwatch }: WindowDayProps) {
+export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, activeMode, onModeChange, pomodoro, onSetPomodoro, onTogglePomodoro, onTogglePomodoroRepeat, timer, onSetTimer, onToggleTimer, onResetTimer, stopwatch, onToggleStopwatch, onResetStopwatch }: WindowDayProps) {
   const totalMinutes = hours.reduce((sum, minutes) => sum + minutes, 0)
   const currentTimeLabel = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
   const dateLabel = date.toLocaleDateString("ko-KR", {
@@ -135,8 +146,13 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, ac
             remaining={pomodoro.remaining}
             running={pomodoro.running}
             endsAt={pomodoro.endsAt}
+            repeat={pomodoro.repeat}
+            phase={pomodoro.phase}
+            workDuration={pomodoro.workDuration}
+            breakDuration={pomodoro.breakDuration}
             onSetDuration={onSetPomodoro}
             onToggle={onTogglePomodoro}
+            onToggleRepeat={onTogglePomodoroRepeat}
           />
         )}
         {activeMode === "timer" && (

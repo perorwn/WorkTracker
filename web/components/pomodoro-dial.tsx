@@ -1,22 +1,28 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Pause, Play } from "lucide-react"
+import { Pause, Play, Repeat2 } from "lucide-react"
 
 interface PomodoroDialProps {
   remaining: number
   running: boolean
   endsAt: number | null
+  repeat: boolean
+  phase: "work" | "break"
+  workDuration: number
+  breakDuration: number
   onSetDuration: (seconds: number) => void
   onToggle: () => void
+  onToggleRepeat: () => void
 }
 
-export function PomodoroDial({ remaining, running, endsAt, onSetDuration, onToggle }: PomodoroDialProps) {
+export function PomodoroDial({ remaining, running, endsAt, repeat, phase, workDuration, breakDuration, onSetDuration, onToggle, onToggleRepeat }: PomodoroDialProps) {
   const dialRef = useRef<HTMLDivElement>(null)
   const draggingRef = useRef(false)
   const [dragging, setDragging] = useState(false)
   const [draftSeconds, setDraftSeconds] = useState(remaining)
   const [now, setNow] = useState(() => Date.now())
+  const editable = !running && phase === "work"
 
   useEffect(() => {
     if (!running || endsAt === null) return
@@ -30,7 +36,7 @@ export function PomodoroDial({ remaining, running, endsAt, onSetDuration, onTogg
   }, [remaining, dragging])
 
   const updateFromPointer = (clientX: number, clientY: number) => {
-    if (running || !dialRef.current) return null
+    if (!editable || !dialRef.current) return null
     const bounds = dialRef.current.getBoundingClientRect()
     const x = clientX - (bounds.left + bounds.width / 2)
     const y = clientY - (bounds.top + bounds.height / 2)
@@ -45,14 +51,31 @@ export function PomodoroDial({ remaining, running, endsAt, onSetDuration, onTogg
     : remaining
   const displaySeconds = dragging ? draftSeconds : liveSeconds
   const displayMinutes = Math.ceil(displaySeconds / 60)
-  const fillDegrees = Math.max(0, Math.min(360, displaySeconds / 10))
+  const workDegrees = Math.max(0, Math.min(360, workDuration / 10))
+  const breakDegrees = Math.max(0, Math.min(360, breakDuration / 10))
+  let redDegrees = Math.max(0, Math.min(360, displaySeconds / 10))
+  let blueDegrees = 0
+  if (repeat && !dragging) {
+    if (phase === "work") {
+      const ratio = workDuration > 0 ? Math.max(0, Math.min(1, displaySeconds / workDuration)) : 0
+      redDegrees = workDegrees * ratio
+      blueDegrees = breakDegrees * (1 - ratio)
+    } else {
+      const ratio = breakDuration > 0 ? Math.max(0, Math.min(1, displaySeconds / breakDuration)) : 0
+      redDegrees = workDegrees * (1 - ratio)
+      blueDegrees = breakDegrees * ratio
+    }
+  }
+  const blueStart = 360 - blueDegrees
   const clockMinutes = Math.floor(displaySeconds / 60)
   const clockSeconds = Math.floor(displaySeconds % 60)
   const clockLabel = `${String(clockMinutes).padStart(2, "0")}:${String(clockSeconds).padStart(2, "0")}`
 
   return (
     <div className="relative flex h-full w-full items-center justify-center">
-      <p className="absolute top-0 left-0 text-[11px] font-medium text-muted-foreground">뽀모도로</p>
+      <p className="absolute top-0 left-0 text-[11px] font-medium text-muted-foreground">
+        뽀모도로{repeat && <span className={phase === "break" ? "text-primary" : ""}> · {phase === "work" ? "집중" : "휴식"}</span>}
+      </p>
       <div
         ref={dialRef}
         role="slider"
@@ -61,10 +84,13 @@ export function PomodoroDial({ remaining, running, endsAt, onSetDuration, onTogg
         aria-valuemin={0}
         aria-valuemax={60}
         aria-valuenow={displayMinutes}
-        className={`pomodoro-dial${running ? " cursor-default" : " cursor-grab active:cursor-grabbing"}`}
-        style={{ "--pomodoro-fill": `${fillDegrees}deg` } as React.CSSProperties}
+        className={`pomodoro-dial${editable ? " cursor-grab active:cursor-grabbing" : " cursor-default"}`}
+        style={{
+          "--pomodoro-red": `${redDegrees}deg`,
+          "--pomodoro-blue-start": `${blueStart}deg`,
+        } as React.CSSProperties}
         onPointerDown={(event) => {
-          if (running) return
+          if (!editable) return
           event.currentTarget.setPointerCapture(event.pointerId)
           draggingRef.current = true
           setDragging(true)
@@ -81,7 +107,7 @@ export function PomodoroDial({ remaining, running, endsAt, onSetDuration, onTogg
           if (next !== null) onSetDuration(next)
         }}
         onKeyDown={(event) => {
-          if (running || !["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp"].includes(event.key)) return
+          if (!editable || !["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp"].includes(event.key)) return
           event.preventDefault()
           const direction = event.key === "ArrowLeft" || event.key === "ArrowDown" ? -1 : 1
           const next = Math.max(0, Math.min(60, displayMinutes + direction)) * 60
@@ -98,6 +124,16 @@ export function PomodoroDial({ remaining, running, endsAt, onSetDuration, onTogg
           <strong className="font-mono text-base font-semibold tabular-nums">{clockLabel}</strong>
         </span>
       </div>
+      <button
+        type="button"
+        onClick={onToggleRepeat}
+        title={repeat ? "반복 끄기" : "반복 켜기"}
+        aria-label={repeat ? "뽀모도로 반복 끄기" : "뽀모도로 반복 켜기"}
+        aria-pressed={repeat}
+        className={`absolute bottom-0 left-0 flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${repeat ? "border-primary bg-primary/12 text-primary" : "border-border bg-muted text-muted-foreground hover:text-foreground"}`}
+      >
+        <Repeat2 className="h-4 w-4" aria-hidden />
+      </button>
       <button
         type="button"
         onClick={onToggle}

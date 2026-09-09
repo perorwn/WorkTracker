@@ -42,7 +42,16 @@ type LocalStatus = {
   timer: TimerState
   stopwatch: StopwatchState
 }
-type PomodoroState = { duration: number; remaining: number; running: boolean; endsAt: number | null }
+type PomodoroState = {
+  duration: number
+  remaining: number
+  running: boolean
+  endsAt: number | null
+  repeat: boolean
+  phase: "work" | "break"
+  workDuration: number
+  breakDuration: number
+}
 
 export function Dashboard() {
   const [today, setToday] = useState(() => new Date())
@@ -59,7 +68,16 @@ export function Dashboard() {
   const [trackerAvailable, setTrackerAvailable] = useState(false)
   const [theme, setTheme] = useState<Theme>("light")
   const [activeWindowMode, setActiveWindowMode] = useState<WindowMode>("tracking")
-  const [pomodoro, setPomodoro] = useState<PomodoroState>({ duration: 1500, remaining: 1500, running: false, endsAt: null })
+  const [pomodoro, setPomodoro] = useState<PomodoroState>({
+    duration: 1500,
+    remaining: 1500,
+    running: false,
+    endsAt: null,
+    repeat: false,
+    phase: "work",
+    workDuration: 1500,
+    breakDuration: 2100,
+  })
   const [timerState, setTimerState] = useState<TimerState>({ duration: 0, remaining: 0, running: false, endsAt: null })
   const [stopwatch, setStopwatch] = useState<StopwatchState>({ elapsed: 0, running: false, startedAt: null, baseElapsed: 0 })
   const pendingMode = useRef<WindowMode | null>(null)
@@ -346,11 +364,22 @@ export function Dashboard() {
       })
   }
 
-  const sendPomodoroAction = (payload: { action: "set"; seconds: number } | { action: "toggle" }) => {
+  const sendPomodoroAction = (payload: { action: "set"; seconds: number } | { action: "toggle" } | { action: "repeat"; enabled: boolean }) => {
     const requestId = ++pomodoroRequestId.current
     pomodoroRequestPending.current = true
     if (payload.action === "set") {
-      setPomodoro({ duration: payload.seconds, remaining: payload.seconds, running: false, endsAt: null })
+      setPomodoro((current) => ({
+        ...current,
+        duration: payload.seconds,
+        remaining: payload.seconds,
+        running: false,
+        endsAt: null,
+        phase: "work",
+        workDuration: payload.seconds,
+        breakDuration: Math.max(0, 3600 - payload.seconds),
+      }))
+    } else if (payload.action === "repeat") {
+      setPomodoro((current) => ({ ...current, repeat: payload.enabled }))
     } else {
       setPomodoro((current) => {
         if (current.running) {
@@ -475,6 +504,7 @@ export function Dashboard() {
         pomodoro={pomodoro}
         onSetPomodoro={(seconds) => sendPomodoroAction({ action: "set", seconds })}
         onTogglePomodoro={() => sendPomodoroAction({ action: "toggle" })}
+        onTogglePomodoroRepeat={() => sendPomodoroAction({ action: "repeat", enabled: !pomodoro.repeat })}
         timer={timerState}
         onSetTimer={(seconds) => sendTimerAction({ action: "set", seconds })}
         onToggleTimer={() => sendTimerAction({ action: "toggle" })}
@@ -500,6 +530,7 @@ export function Dashboard() {
         pomodoro={pomodoro}
         onSetPomodoro={(seconds) => sendPomodoroAction({ action: "set", seconds })}
         onTogglePomodoro={() => sendPomodoroAction({ action: "toggle" })}
+        onTogglePomodoroRepeat={() => sendPomodoroAction({ action: "repeat", enabled: !pomodoro.repeat })}
         timer={timerState}
         onSetTimer={(seconds) => sendTimerAction({ action: "set", seconds })}
         onToggleTimer={() => sendTimerAction({ action: "toggle" })}

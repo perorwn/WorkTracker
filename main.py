@@ -48,6 +48,8 @@ pomodoro_duration_seconds = 25 * 60
 pomodoro_remaining_seconds = pomodoro_duration_seconds
 pomodoro_running = False
 pomodoro_ends_at = None
+pomodoro_repeat = False
+pomodoro_phase = "work"
 timer_duration_seconds = 0
 timer_remaining_seconds = 0
 timer_running = False
@@ -69,6 +71,10 @@ live_state = {
         "remaining": pomodoro_remaining_seconds,
         "running": pomodoro_running,
         "endsAt": None,
+        "repeat": pomodoro_repeat,
+        "phase": pomodoro_phase,
+        "workDuration": pomodoro_duration_seconds,
+        "breakDuration": 60 * 60 - pomodoro_duration_seconds,
     },
     "timer": {
         "duration": timer_duration_seconds,
@@ -201,21 +207,35 @@ def pomodoro_snapshot_locked():
     global pomodoro_remaining_seconds
     global pomodoro_running
     global pomodoro_ends_at
+    global pomodoro_phase
 
     if pomodoro_running and pomodoro_ends_at is not None:
-        pomodoro_remaining_seconds = max(
-            0,
-            math.ceil(pomodoro_ends_at - time.time()),
-        )
-        if pomodoro_remaining_seconds == 0:
-            pomodoro_running = False
-            pomodoro_ends_at = None
+        now = time.time()
+        break_duration = max(0, 60 * 60 - pomodoro_duration_seconds)
+        while pomodoro_ends_at <= now:
+            if not pomodoro_repeat or pomodoro_duration_seconds <= 0 or break_duration <= 0:
+                pomodoro_remaining_seconds = 0
+                pomodoro_running = False
+                pomodoro_ends_at = None
+                break
+            if pomodoro_phase == "work":
+                pomodoro_phase = "break"
+                pomodoro_ends_at += break_duration
+            else:
+                pomodoro_phase = "work"
+                pomodoro_ends_at += pomodoro_duration_seconds
+        if pomodoro_running and pomodoro_ends_at is not None:
+            pomodoro_remaining_seconds = max(0, math.ceil(pomodoro_ends_at - now))
 
     return {
         "duration": pomodoro_duration_seconds,
         "remaining": pomodoro_remaining_seconds,
         "running": pomodoro_running,
         "endsAt": int(pomodoro_ends_at * 1000) if pomodoro_running and pomodoro_ends_at else None,
+        "repeat": pomodoro_repeat,
+        "phase": pomodoro_phase,
+        "workDuration": pomodoro_duration_seconds,
+        "breakDuration": max(0, 60 * 60 - pomodoro_duration_seconds),
     }
 
 
@@ -224,6 +244,8 @@ def update_pomodoro(payload):
     global pomodoro_remaining_seconds
     global pomodoro_running
     global pomodoro_ends_at
+    global pomodoro_repeat
+    global pomodoro_phase
 
     action = payload.get("action")
     with live_state_lock:
@@ -237,16 +259,20 @@ def update_pomodoro(payload):
             pomodoro_remaining_seconds = seconds
             pomodoro_running = False
             pomodoro_ends_at = None
+            pomodoro_phase = "work"
         elif action == "toggle":
             if pomodoro_running:
                 pomodoro_running = False
                 pomodoro_ends_at = None
             else:
                 if pomodoro_remaining_seconds <= 0:
+                    pomodoro_phase = "work"
                     pomodoro_remaining_seconds = pomodoro_duration_seconds
                 if pomodoro_remaining_seconds > 0:
                     pomodoro_running = True
                     pomodoro_ends_at = time.time() + pomodoro_remaining_seconds
+        elif action == "repeat":
+            pomodoro_repeat = bool(payload.get("enabled", False))
         else:
             raise ValueError("invalid action")
 
