@@ -15,15 +15,6 @@ import {
 
 type SelectedCell = { day: number; hour: number } | null
 
-const LEVEL_LABEL: Record<number, string> = {
-  0: "기록 없음",
-  1: "가볍게",
-  2: "꾸준히",
-  3: "충실히",
-  4: "알차게",
-  5: "몰입",
-}
-
 interface DayDetailProps {
   data: WeekData
   weekStart: Date
@@ -80,16 +71,6 @@ export function DayDetail({ data, weekStart, selected }: DayDetailProps) {
         <p className="mt-1 text-3xl font-semibold tabular-nums text-foreground">
           {hourMinutes > 0 ? formatDuration(hourMinutes) : "0분"}
         </p>
-        <span
-          className={cn(
-            "mt-3 inline-block rounded-full px-2.5 py-1 text-xs font-medium",
-            level === 0
-              ? "bg-muted text-muted-foreground"
-              : "bg-accent text-accent-foreground",
-          )}
-        >
-          {LEVEL_LABEL[level]}
-        </span>
       </div>
 
       <div className="h-px bg-border" />

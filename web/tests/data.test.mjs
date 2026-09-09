@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { weekFromRows, weekTotalMinutes, buildContributionData, formatDuration, intensityLevel, getWeekStart, dateKey } from '../lib/work-data.ts'
+import { weekFromRows, weekTotalMinutes, buildContributionData, formatDuration, intensityLevel, dailyIntensityLevel, getWeekStart, dateKey } from '../lib/work-data.ts'
 import { fetchWorkRows } from '../lib/supabase.ts'
 
 test('hourly seconds survive conversion, week/year totals agree, missing days are zero', () => {
@@ -17,8 +17,12 @@ test('hourly seconds survive conversion, week/year totals agree, missing days ar
   assert.equal(formatDuration(1433/60),'23분 53초')
   assert.equal(formatDuration(3599/60),'59분 59초')
   assert.equal(formatDuration(60),'1시간')
-  assert.equal(intensityLevel(60),5)
+  assert.equal(intensityLevel(60),4)
   assert.equal(intensityLevel(15),2)
+  assert.equal(dailyIntensityLevel(329.99),1)
+  assert.equal(dailyIntensityLevel(330),2)
+  assert.equal(dailyIntensityLevel(390),3)
+  assert.equal(dailyIntensityLevel(450),4)
 })
 
 test('pagination handles a server cap below requested limit and sends only publishable apikey',async () => {

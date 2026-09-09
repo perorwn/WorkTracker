@@ -37,13 +37,12 @@ export function isSameDay(a: Date, b: Date): boolean {
 }
 
 /** Minutes -> intensity level 0..5 per the tracking spec. */
-export function intensityLevel(minutes: number): 0 | 1 | 2 | 3 | 4 | 5 {
+export function intensityLevel(minutes: number): 0 | 1 | 2 | 3 | 4 {
   if (minutes <= 0) return 0
   if (minutes < 15) return 1
   if (minutes < 30) return 2
   if (minutes < 45) return 3
-  if (minutes < 60) return 4
-  return 5
+  return 4
 }
 
 export const HEAT_CLASS: Record<number, string> = {
@@ -52,7 +51,6 @@ export const HEAT_CLASS: Record<number, string> = {
   2: "bg-heat-2",
   3: "bg-heat-3",
   4: "bg-heat-4",
-  5: "bg-heat-5",
 }
 
 export function formatDuration(minutes: number): string {
@@ -99,13 +97,12 @@ export function mondayIndex(date: Date): number {
  * several hours, so this uses coarser buckets than the hourly heatmap while
  * sharing the same 6-step palette.
  */
-export function dailyIntensityLevel(minutes: number): 0 | 1 | 2 | 3 | 4 | 5 {
+export function dailyIntensityLevel(minutes: number): 0 | 1 | 2 | 3 | 4 {
   if (minutes <= 0) return 0
-  if (minutes <= 60) return 1
-  if (minutes <= 120) return 2
-  if (minutes <= 180) return 3
-  if (minutes <= 240) return 4
-  return 5
+  if (minutes < 330) return 1
+  if (minutes < 390) return 2
+  if (minutes < 450) return 3
+  return 4
 }
 
 export interface ContributionDay {
