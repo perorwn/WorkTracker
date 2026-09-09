@@ -18,7 +18,7 @@ const pretendard = localFont({
 
 export const metadata: Metadata = {
   title: '작업 기록 — 클립 스튜디오',
-  applicationName: 'WorkTracker',
+  applicationName: 'WORK TRACKER',
   description:
     '클립 스튜디오 작업 시간을 주간·연간 그래프로 확인하세요.',
   manifest: `${basePath}/manifest.webmanifest`,
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: 'WorkTracker',
+    title: 'WORK TRACKER',
     statusBarStyle: 'default',
   },
 }

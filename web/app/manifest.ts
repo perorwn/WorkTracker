@@ -6,8 +6,8 @@ export const dynamic = "force-static"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "WorkTracker",
-    short_name: "WorkTracker",
+    name: "WORK TRACKER",
+    short_name: "WORK TRACKER",
     description: "CLIP STUDIO PAINT 작업 시간 기록",
     start_url: `${basePath}/`,
     scope: `${basePath}/`,
