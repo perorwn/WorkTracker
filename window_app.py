@@ -66,6 +66,8 @@ gdi32.DeleteObject.argtypes = [wintypes.HANDLE]
 user32.SetWindowRgn.argtypes = [wintypes.HWND, wintypes.HANDLE, wintypes.BOOL]
 user32.GetDpiForWindow.argtypes = [wintypes.HWND]
 user32.GetDpiForWindow.restype = wintypes.UINT
+user32.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+user32.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
 
 HWND_TOPMOST = -1
 HWND_NOTOPMOST = -2
@@ -208,6 +210,17 @@ def hide_native_titlebar(hwnd):
 
 
 def update_window_region(hwnd):
+    # SetWindowRgn uses physical pixels. GetWindowRect otherwise returns scaled
+    # coordinates at 125/150% display scaling, leaving part of the caption visible.
+    previous = user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))
+    try:
+        _update_window_region_pixels(hwnd)
+    finally:
+        if previous:
+            user32.SetThreadDpiAwarenessContext(previous)
+
+
+def _update_window_region_pixels(hwnd):
     if not user32.GetPropW(hwnd, TITLEBAR_HIDDEN_PROPERTY) or user32.IsIconic(hwnd):
         return
     outer = RECT()
