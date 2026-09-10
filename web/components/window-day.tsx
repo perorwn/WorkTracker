@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import { formatDuration, HEAT_CLASS, intensityLevel } from "@/lib/work-data"
 import { FlipDuration } from "@/components/flip-duration"
 import { RecordStatus } from "@/components/record-status"
+import { WindowTitlebar } from "@/components/window-titlebar"
 import { Hourglass, Timer } from "lucide-react"
 import { PomodoroDial } from "@/components/pomodoro-dial"
 import { TimerControl, type TimerState } from "@/components/timer-control"
@@ -70,6 +71,7 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, ac
 
   return (
     <div className="flex h-screen min-h-[210px] min-w-[1160px] items-stretch gap-4 bg-background p-4">
+      <WindowTitlebar />
       <section className="flex min-w-0 flex-1 flex-col justify-between rounded-xl border border-border bg-card p-5">
         <div className="flex items-end justify-between gap-4">
           <div>

@@ -230,6 +230,10 @@ class LiveStateHandler(SimpleHTTPRequestHandler):
                 return
         else:
             try:
+                if payload.get("action") in {"titlebar-ready", "move", "minimize", "close"}:
+                    if self.headers.get("Origin") != "http://127.0.0.1:8765":
+                        self._send_headers(403)
+                        return
                 result = update_window(payload)
             except (TypeError, ValueError):
                 self._send_headers(400)
@@ -284,6 +288,9 @@ def launch_window_mode():
 
 def update_window(payload):
     action = payload.get("action")
+    if action in {"titlebar-ready", "move", "minimize", "close"}:
+        from window_app import control_managed_window
+        return {"handled": control_managed_window(action)}
     if action == "open":
         theme = payload.get("theme")
         if theme in ("light", "dark"):

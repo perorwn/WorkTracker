@@ -52,6 +52,11 @@ user32.SetPropW.argtypes = [wintypes.HWND, wintypes.LPCWSTR, wintypes.HANDLE]
 user32.SetPropW.restype = wintypes.BOOL
 user32.RemovePropW.argtypes = [wintypes.HWND, wintypes.LPCWSTR]
 user32.RemovePropW.restype = wintypes.HANDLE
+user32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
+user32.GetWindowLongW.restype = ctypes.c_long
+user32.SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_long]
+user32.SetWindowLongW.restype = ctypes.c_long
+user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
 
 HWND_TOPMOST = -1
 HWND_NOTOPMOST = -2
@@ -182,6 +187,34 @@ def bring_to_front(hwnd):
     if hwnd:
         user32.ShowWindow(hwnd, SW_RESTORE)
         user32.SetForegroundWindow(hwnd)
+
+
+def hide_native_titlebar(hwnd):
+    style = user32.GetWindowLongW(hwnd, -16)
+    # Keep the resize frame, system menu and taskbar behavior.
+    user32.SetWindowLongW(hwnd, -16, style & ~0x00C00000)  # WS_CAPTION
+    user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0020 | 0x0001 | 0x0002 | 0x0004 | 0x0010)
+
+
+def control_managed_window(action):
+    hwnd = find_managed_window()
+    if not hwnd:
+        return False
+    if action == "titlebar-ready":
+        hide_native_titlebar(hwnd)
+    elif action == "move":
+        # Only start a native move while the user still holds the left button.
+        if not user32.GetAsyncKeyState(0x01) & 0x8000:
+            return False
+        user32.ReleaseCapture()
+        user32.PostMessageW(hwnd, 0x0112, 0xF012, 0)  # SC_MOVE | HTCAPTION
+    elif action == "minimize":
+        user32.PostMessageW(hwnd, 0x0112, 0xF020, 0)
+    elif action == "close":
+        user32.PostMessageW(hwnd, 0x0010, 0, 0)  # Only the managed window, not tracking.
+    else:
+        raise ValueError("invalid window control")
+    return True
 
 
 def apply_titlebar_theme(hwnd, theme):
