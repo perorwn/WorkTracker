@@ -17,6 +17,7 @@ import database
 
 WINDOW_TITLE = "WORK TRACKER"
 WINDOW_PROPERTY = "WorkTrackerLocalWindowV4"
+TITLEBAR_HIDDEN_PROPERTY = "WorkTrackerCustomTitlebar"
 WINDOW_URL = os.environ.get(
     "WORKTRACKER_WINDOW_URL",
     "http://127.0.0.1:8765/?window=1&native=1",
@@ -57,6 +58,14 @@ user32.GetWindowLongW.restype = ctypes.c_long
 user32.SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_long]
 user32.SetWindowLongW.restype = ctypes.c_long
 user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+
+gdi32 = ctypes.windll.gdi32
+gdi32.CreateRectRgn.argtypes = [ctypes.c_int] * 4
+gdi32.CreateRectRgn.restype = wintypes.HANDLE
+gdi32.DeleteObject.argtypes = [wintypes.HANDLE]
+user32.SetWindowRgn.argtypes = [wintypes.HWND, wintypes.HANDLE, wintypes.BOOL]
+user32.GetDpiForWindow.argtypes = [wintypes.HWND]
+user32.GetDpiForWindow.restype = wintypes.UINT
 
 HWND_TOPMOST = -1
 HWND_NOTOPMOST = -2
@@ -190,10 +199,41 @@ def bring_to_front(hwnd):
 
 
 def hide_native_titlebar(hwnd):
+    # Edge paints a custom caption: retain its layout and exclude that region.
     style = user32.GetWindowLongW(hwnd, -16)
-    # Keep the resize frame, system menu and taskbar behavior.
-    user32.SetWindowLongW(hwnd, -16, style & ~0x00C00000)  # WS_CAPTION
+    user32.SetWindowLongW(hwnd, -16, style | 0x00C00000)
     user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0020 | 0x0001 | 0x0002 | 0x0004 | 0x0010)
+    user32.SetPropW(hwnd, TITLEBAR_HIDDEN_PROPERTY, wintypes.HANDLE(1))
+    update_window_region(hwnd)
+
+
+def update_window_region(hwnd):
+    if not user32.GetPropW(hwnd, TITLEBAR_HIDDEN_PROPERTY) or user32.IsIconic(hwnd):
+        return
+    outer = RECT()
+    if not user32.GetWindowRect(hwnd, ctypes.byref(outer)):
+        return
+    width, height = outer.right - outer.left, outer.bottom - outer.top
+    renderer_tops = []
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def visit(child, _):
+        name = ctypes.create_unicode_buffer(256)
+        user32.GetClassNameW(child, name, len(name))
+        if name.value == "Chrome_RenderWidgetHostHWND" and user32.IsWindowVisible(child):
+            rect = RECT()
+            if user32.GetWindowRect(child, ctypes.byref(rect)) and rect.right - rect.left > width / 2:
+                top = rect.top - outer.top
+                if 0 < top < height / 2:
+                    renderer_tops.append(top)
+        return True
+
+    user32.EnumChildWindows(hwnd, callback_type(visit), 0)
+    dpi = user32.GetDpiForWindow(hwnd) or 96
+    top = min(renderer_tops) if renderer_tops else round(32 * dpi / 96)
+    region = gdi32.CreateRectRgn(0, top, width, height)
+    if region and not user32.SetWindowRgn(hwnd, region, True):
+        gdi32.DeleteObject(region)
 
 
 def control_managed_window(action):
@@ -384,6 +424,7 @@ def main():
                 time.sleep(0.1)
                 continue
             if bounds != last_bounds:
+                update_window_region(hwnd)
                 save_bounds(hwnd)
                 last_bounds = bounds
         time.sleep(0.5)
