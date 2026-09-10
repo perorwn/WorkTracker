@@ -54,6 +54,7 @@ def load_int_setting(key, default, minimum, maximum):
 current_status = "시작 중"
 is_running = True
 live_state_lock = threading.Lock()
+theme_changed = threading.Condition(live_state_lock)
 pomodoro_duration_seconds = load_int_setting(
     "pomodoro_duration_seconds",
     25 * 60,
@@ -145,6 +146,27 @@ class LiveStateHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urlsplit(self.path)
         path = parsed.path.rstrip("/")
+        if path == "/theme-events":
+            self._send_headers(200, "text/event-stream")
+            self.close_connection = True
+            previous = None
+            try:
+                while is_running:
+                    with theme_changed:
+                        theme_changed.wait_for(
+                            lambda: live_state["theme"] != previous, timeout=15
+                        )
+                        theme = live_state["theme"]
+                    if theme != previous:
+                        message = f"data: {json.dumps({'theme': theme})}\n\n"
+                        previous = theme
+                    else:
+                        message = ": keepalive\n\n"
+                    self.wfile.write(message.encode("utf-8"))
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                pass
+            return
         if path == "/open":
             query = parse_qs(parsed.query)
             theme = query.get("theme", [None])[0]
@@ -268,6 +290,7 @@ def update_window(payload):
             database.set_setting("window_theme", theme)
             with live_state_lock:
                 live_state["theme"] = theme
+                theme_changed.notify_all()
         return {"opened": launch_window_mode()}
     if action == "theme":
         theme = payload.get("theme")
@@ -276,6 +299,7 @@ def update_window(payload):
         database.set_setting("window_theme", theme)
         with live_state_lock:
             live_state["theme"] = theme
+            theme_changed.notify_all()
         return {"theme": theme}
     raise ValueError("invalid action")
 

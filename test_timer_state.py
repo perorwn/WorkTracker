@@ -1,7 +1,12 @@
 import ast
 import math
+import json
+import time
 import threading
 import unittest
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from urllib.request import urlopen
+from urllib.parse import urlsplit
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -20,6 +25,33 @@ class TimerRegressionTests(unittest.TestCase):
             pomodoro_ends_at=None, pomodoro_repeat=False, pomodoro_phase='work',
             stopwatch_elapsed_seconds=0.0, stopwatch_running=False, stopwatch_started_at=None)
         exec(compile(functions, 'main.py', 'exec'), self.state)
+        self.state['theme_changed'] = threading.Condition(self.state['live_state_lock'])
+
+    def test_theme_stream_delivers_initial_state_and_change(self):
+        self.state.update(json=json, Path=Path, urlsplit=urlsplit,
+            SimpleHTTPRequestHandler=SimpleHTTPRequestHandler,
+            __file__=str(Path('main.py').resolve()), is_running=True)
+        self.state['live_state']['theme'] = 'dark'
+        handler = next(node for node in source.body if isinstance(node, ast.ClassDef) and node.name == 'LiveStateHandler')
+        exec(compile(ast.Module(body=[handler], type_ignores=[]), 'main.py', 'exec'), self.state)
+        server = ThreadingHTTPServer(('127.0.0.1', 0), self.state['LiveStateHandler'])
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with urlopen(f'http://127.0.0.1:{server.server_port}/theme-events', timeout=2) as stream:
+                self.assertEqual(json.loads(stream.readline()[6:]), {'theme': 'dark'})
+                stream.readline()
+                start = time.perf_counter()
+                self.state['update_window']({'action': 'theme', 'theme': 'light'})
+                self.assertEqual(json.loads(stream.readline()[6:]), {'theme': 'light'})
+                self.assertLess(time.perf_counter() - start, 0.4)
+        finally:
+            self.state['is_running'] = False
+            with self.state['theme_changed']:
+                self.state['live_state']['theme'] = 'dark'
+                self.state['theme_changed'].notify_all()
+            server.shutdown()
+            server.server_close()
 
     def test_repeated_pause_resume_preserves_fractional_time(self):
         toggle = self.state['update_pomodoro']

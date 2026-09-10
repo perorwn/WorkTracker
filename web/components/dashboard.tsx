@@ -81,6 +81,8 @@ export function Dashboard() {
   const [stopwatch, setStopwatch] = useState<StopwatchState>({ elapsed: 0, running: false, startedAt: null, baseElapsed: 0 })
   const pendingMode = useRef<WindowMode | null>(null)
   const windowModeRef = useRef(false)
+  const themeStreamActive = useRef(false)
+  const themeStreamVersion = useRef(0)
   const pomodoroRequestId = useRef(0)
   const pomodoroRequestPending = useRef(false)
   const timerRequestId = useRef(0)
@@ -189,6 +191,22 @@ export function Dashboard() {
   const toggleTheme = () => setTheme((value) => value === "light" ? "dark" : "light")
 
   useEffect(() => {
+    if (!isWindowMode) return
+    const events = new EventSource(`${LOCAL_API}/theme-events`)
+    events.onmessage = (event) => {
+      try {
+        const value = JSON.parse(event.data) as { theme?: Theme }
+        if (value.theme !== "light" && value.theme !== "dark") return
+        themeStreamActive.current = true
+        themeStreamVersion.current += 1
+        setTheme(value.theme)
+      } catch { /* Ignore incomplete events and retain the current theme. */ }
+    }
+    events.onerror = () => { themeStreamActive.current = false }
+    return () => { events.close(); themeStreamActive.current = false }
+  }, [isWindowMode])
+
+  useEffect(() => {
     const timer = setInterval(() => {
       setToday(new Date())
     }, 1000)
@@ -202,6 +220,7 @@ export function Dashboard() {
     let lastSnapshot = ""
 
     async function readLocalStatus() {
+      const themeVersion = themeStreamVersion.current
       const pomodoroVersion = pomodoroRequestId.current
       const timerVersion = timerRequestId.current
       const stopwatchVersion = stopwatchRequestId.current
@@ -236,7 +255,7 @@ export function Dashboard() {
           if (status.pomodoro && !pomodoroWasPending && !pomodoroRequestPending.current && pomodoroVersion === pomodoroRequestId.current) setPomodoro(status.pomodoro)
           if (status.timer && !timerWasPending && !timerRequestPending.current && timerVersion === timerRequestId.current) setTimerState(status.timer)
           if (status.stopwatch && !stopwatchWasPending && !stopwatchRequestPending.current && stopwatchVersion === stopwatchRequestId.current) setStopwatch(status.stopwatch)
-          if (windowModeRef.current && (status.theme === "dark" || status.theme === "light")) {
+          if (windowModeRef.current && !themeStreamActive.current && themeVersion === themeStreamVersion.current && (status.theme === "dark" || status.theme === "light")) {
             setTheme(status.theme)
           }
           setRows((existing) => [
