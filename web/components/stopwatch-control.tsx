@@ -17,12 +17,13 @@ interface StopwatchControlProps {
 }
 
 function formatTime(totalSeconds: number) {
-  const seconds = Math.max(0, Math.floor(totalSeconds))
+  const milliseconds = Math.max(0, Math.floor(totalSeconds * 1000))
+  const seconds = Math.floor(milliseconds / 1000)
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
   return [hours, minutes, seconds % 60]
     .map((value) => String(value).padStart(2, "0"))
-    .join(":")
+    .join(":") + `.${String(milliseconds % 1000).padStart(3, "0")}`
 }
 
 export function StopwatchControl({ stopwatch, onToggle, onReset }: StopwatchControlProps) {
@@ -40,13 +41,13 @@ export function StopwatchControl({ stopwatch, onToggle, onReset }: StopwatchCont
   }, [stopwatch.running, stopwatch.startedAt])
 
   const elapsed = stopwatch.running && stopwatch.startedAt !== null
-    ? stopwatch.baseElapsed + (now - stopwatch.startedAt) / 1000
+    ? stopwatch.baseElapsed + Math.max(0, now - stopwatch.startedAt) / 1000
     : stopwatch.elapsed
 
   return (
     <div className="relative flex h-full w-full items-center justify-center">
       <p className="absolute top-0 left-0 text-[11px] font-medium text-muted-foreground">스톱워치</p>
-      <strong className="font-mono text-2xl font-semibold tracking-tight tabular-nums text-foreground">
+      <strong className="whitespace-nowrap font-mono text-lg font-semibold tracking-tight tabular-nums text-foreground">
         {formatTime(elapsed)}
       </strong>
       <button

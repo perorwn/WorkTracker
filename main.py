@@ -302,7 +302,7 @@ def pomodoro_snapshot_locked():
                 pomodoro_phase = "work"
                 pomodoro_ends_at += pomodoro_duration_seconds
         if pomodoro_running and pomodoro_ends_at is not None:
-            pomodoro_remaining_seconds = max(0, math.ceil(pomodoro_ends_at - now))
+            pomodoro_remaining_seconds = max(0, pomodoro_ends_at - now)
 
     return {
         "duration": pomodoro_duration_seconds,
@@ -425,7 +425,7 @@ def stopwatch_snapshot_locked():
     if stopwatch_running and stopwatch_started_at is not None:
         elapsed += time.time() - stopwatch_started_at
     return {
-        "elapsed": max(0, math.floor(elapsed)),
+        "elapsed": max(0, elapsed),
         "running": stopwatch_running,
         "startedAt": int(stopwatch_started_at * 1000) if stopwatch_running and stopwatch_started_at else None,
         "baseElapsed": stopwatch_elapsed_seconds,

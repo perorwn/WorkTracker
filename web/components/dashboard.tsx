@@ -157,19 +157,34 @@ export function Dashboard() {
     const transitionTimer = window.setTimeout(() => {
       document.documentElement.classList.remove('theme-changing')
     }, 100)
-    if (!windowModeRef.current) {
+    return () => window.clearTimeout(transitionTimer)
+  }, [theme, themeReady])
+
+  useEffect(() => {
+    if (!themeReady || windowModeRef.current) return
+    let stopped = false
+    let retryTimer: ReturnType<typeof setTimeout>
+    const controller = new AbortController()
+    const syncTheme = async () => {
       const options = {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "theme", theme }),
+        signal: controller.signal,
         cache: "no-store",
         mode: "cors",
         targetAddressSpace: "local",
       } as RequestInit & { targetAddressSpace: "local" }
-      void fetch(`${LOCAL_API}/window`, options).catch(() => undefined)
+      try {
+        const response = await fetch(`${LOCAL_API}/window`, options)
+        if (!response.ok) throw new Error("theme update failed")
+      } catch {
+        if (!stopped) retryTimer = setTimeout(syncTheme, 1000)
+      }
     }
-    return () => window.clearTimeout(transitionTimer)
-  }, [theme, themeReady])
+    void syncTheme()
+    return () => { stopped = true; clearTimeout(retryTimer); controller.abort() }
+  }, [theme, themeReady, trackerAvailable])
 
   const toggleTheme = () => setTheme((value) => value === "light" ? "dark" : "light")
 
@@ -187,6 +202,12 @@ export function Dashboard() {
     let lastSnapshot = ""
 
     async function readLocalStatus() {
+      const pomodoroVersion = pomodoroRequestId.current
+      const timerVersion = timerRequestId.current
+      const stopwatchVersion = stopwatchRequestId.current
+      const pomodoroWasPending = pomodoroRequestPending.current
+      const timerWasPending = timerRequestPending.current
+      const stopwatchWasPending = stopwatchRequestPending.current
       controller = new AbortController()
       try {
         const options = {
@@ -212,9 +233,9 @@ export function Dashboard() {
             if (pendingMode.current === status.mode) pendingMode.current = null
             if (pendingMode.current === null) setActiveWindowMode(status.mode)
           }
-          if (status.pomodoro && !pomodoroRequestPending.current) setPomodoro(status.pomodoro)
-          if (status.timer && !timerRequestPending.current) setTimerState(status.timer)
-          if (status.stopwatch && !stopwatchRequestPending.current) setStopwatch(status.stopwatch)
+          if (status.pomodoro && !pomodoroWasPending && !pomodoroRequestPending.current && pomodoroVersion === pomodoroRequestId.current) setPomodoro(status.pomodoro)
+          if (status.timer && !timerWasPending && !timerRequestPending.current && timerVersion === timerRequestId.current) setTimerState(status.timer)
+          if (status.stopwatch && !stopwatchWasPending && !stopwatchRequestPending.current && stopwatchVersion === stopwatchRequestId.current) setStopwatch(status.stopwatch)
           if (windowModeRef.current && (status.theme === "dark" || status.theme === "light")) {
             setTheme(status.theme)
           }
@@ -407,7 +428,7 @@ export function Dashboard() {
     } else {
       setPomodoro((current) => {
         if (current.running) {
-          const remaining = current.endsAt === null ? current.remaining : Math.max(0, Math.ceil((current.endsAt - Date.now()) / 1000))
+          const remaining = current.endsAt === null ? current.remaining : Math.max(0, (current.endsAt - Date.now()) / 1000)
           return { ...current, remaining, running: false, endsAt: null }
         }
         return current.remaining > 0

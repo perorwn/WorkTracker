@@ -47,9 +47,9 @@ export function PomodoroDial({ remaining, running, endsAt, repeat, phase, workDu
   }
 
   const liveSeconds = running && endsAt !== null
-    ? Math.max(0, Math.ceil((endsAt - now) / 1000))
+    ? Math.max(0, Math.min(remaining, (endsAt - now) / 1000))
     : remaining
-  const displaySeconds = dragging ? draftSeconds : liveSeconds
+  const displaySeconds = Math.ceil(dragging ? draftSeconds : liveSeconds)
   const displayMinutes = Math.ceil(displaySeconds / 60)
   const workDegrees = Math.max(0, Math.min(360, workDuration / 10))
   const breakDegrees = Math.max(0, Math.min(360, breakDuration / 10))
