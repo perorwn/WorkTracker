@@ -1,12 +1,15 @@
 import ctypes
+import json
 import os
 import shutil
 import subprocess
 import sys
 import time
+import threading
 from ctypes import wintypes
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.request import urlopen
 from uuid import uuid4
 
 import database
@@ -27,6 +30,9 @@ MIN_HEIGHT = 210
 
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
+dwmapi = ctypes.windll.dwmapi
+dwmapi.DwmSetWindowAttribute.argtypes = [wintypes.HWND, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD]
+dwmapi.DwmSetWindowAttribute.restype = ctypes.c_long
 
 kernel32.CreateMutexW.restype = wintypes.HANDLE
 kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
@@ -178,6 +184,43 @@ def bring_to_front(hwnd):
         user32.SetForegroundWindow(hwnd)
 
 
+def apply_titlebar_theme(hwnd, theme):
+    dark = theme == "dark"
+    # COLORREF stores red in the least-significant byte (0x00BBGGRR).
+    attributes = {
+        20: 1 if dark else 0,  # DWMWA_USE_IMMERSIVE_DARK_MODE
+        35: 0x001B1714 if dark else 0x00FFFFFF,  # DWMWA_CAPTION_COLOR
+        36: 0x00F5F5F5 if dark else 0x0026201C,  # DWMWA_TEXT_COLOR
+    }
+    for attribute, value in attributes.items():
+        setting = wintypes.DWORD(value)
+        dwmapi.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(setting), ctypes.sizeof(setting))
+
+
+def follow_titlebar_theme(hwnd):
+    previous = None
+    while user32.IsWindow(hwnd):
+        try:
+            # The same push stream as the web view keeps both surfaces in sync.
+            with urlopen("http://127.0.0.1:8765/theme-events", timeout=30) as events:
+                for line in events:
+                    if not user32.IsWindow(hwnd):
+                        return
+                    if not line.startswith(b"data: "):
+                        continue
+                    theme = json.loads(line[6:]).get("theme")
+                    if theme in ("dark", "light") and theme != previous:
+                        apply_titlebar_theme(hwnd, theme)
+                        previous = theme
+        except (OSError, ValueError):
+            # Also supports an older tracker until it is restarted.
+            theme = database.get_setting("window_theme", "light")
+            if theme != previous and user32.IsWindow(hwnd):
+                apply_titlebar_theme(hwnd, theme)
+                previous = theme
+            time.sleep(1)
+
+
 def monitor_work_area(rect):
     monitor = user32.MonitorFromRect(ctypes.byref(rect), MONITOR_DEFAULTTONEAREST)
     info = MONITORINFO(cbSize=ctypes.sizeof(MONITORINFO))
@@ -276,6 +319,8 @@ def main():
 
     user32.SetPropW(hwnd, WINDOW_PROPERTY, wintypes.HANDLE(1))
     user32.SetWindowTextW(hwnd, WINDOW_TITLE)
+    apply_titlebar_theme(hwnd, database.get_setting("window_theme", "light"))
+    threading.Thread(target=follow_titlebar_theme, args=(hwnd,), daemon=True).start()
     x, y, width, height = restored_bounds()
     user32.SetWindowPos(
         hwnd,

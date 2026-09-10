@@ -155,6 +155,11 @@ export function Dashboard() {
     document.documentElement.classList.add('theme-changing')
     document.documentElement.classList.toggle("dark", theme === "dark")
     document.documentElement.classList.toggle("light", theme === "light")
+    // Chromium app windows also use the page theme color for their custom frame.
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+      meta.removeAttribute("media")
+      meta.setAttribute("content", theme === "dark" ? "#14171b" : "#ffffff")
+    })
     localStorage.setItem("worktracker-theme", theme)
     const transitionTimer = window.setTimeout(() => {
       document.documentElement.classList.remove('theme-changing')
