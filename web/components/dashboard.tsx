@@ -66,7 +66,7 @@ export function Dashboard() {
   const [trackerAvailable, setTrackerAvailable] = useState(false)
   const [theme, setTheme] = useState<Theme>("light")
   const [themeReady, setThemeReady] = useState(false)
-  const [activeWindowMode, setActiveWindowMode] = useState<WindowMode>("tracking")
+  const [activeWindowMode, setActiveWindowMode] = useState<WindowMode>("pomodoro")
   const [pomodoro, setPomodoro] = useState<PomodoroState>({
     duration: 1500,
     remaining: 1500,
@@ -248,7 +248,7 @@ export function Dashboard() {
           lastSnapshot = snapshot
           setCurrentSeconds(status.seconds)
           setIsLive(status.working)
-          if (["tracking", "pomodoro", "timer", "stopwatch"].includes(status.mode)) {
+          if (["pomodoro", "timer", "stopwatch"].includes(status.mode)) {
             if (pendingMode.current === status.mode) pendingMode.current = null
             if (pendingMode.current === null) setActiveWindowMode(status.mode)
           }

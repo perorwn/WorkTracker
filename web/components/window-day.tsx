@@ -4,12 +4,12 @@ import { cn } from "@/lib/utils"
 import { formatDuration, HEAT_CLASS, intensityLevel } from "@/lib/work-data"
 import { FlipDuration } from "@/components/flip-duration"
 import { RecordStatus } from "@/components/record-status"
-import { Activity, Hourglass, Timer } from "lucide-react"
+import { Hourglass, Timer } from "lucide-react"
 import { PomodoroDial } from "@/components/pomodoro-dial"
 import { TimerControl, type TimerState } from "@/components/timer-control"
 import { StopwatchControl, type StopwatchState } from "@/components/stopwatch-control"
 
-export type WindowMode = "tracking" | "pomodoro" | "timer" | "stopwatch"
+export type WindowMode = "pomodoro" | "timer" | "stopwatch"
 
 interface WindowDayProps {
   date: Date
@@ -44,10 +44,9 @@ interface WindowDayProps {
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
 const MODE_ITEMS = [
-  { mode: "tracking", label: "작업 시간 측정", shortcut: "F1", icon: Activity },
-  { mode: "pomodoro", label: "뽀모도로", shortcut: "F2", icon: FocusSessionIcon },
-  { mode: "timer", label: "타이머", shortcut: "F3", icon: Hourglass },
-  { mode: "stopwatch", label: "스톱워치", shortcut: "F4", icon: Timer },
+  { mode: "pomodoro", label: "뽀모도로", shortcut: "F1", icon: FocusSessionIcon },
+  { mode: "timer", label: "타이머", shortcut: "F2", icon: Hourglass },
+  { mode: "stopwatch", label: "스톱워치", shortcut: "F3", icon: Timer },
 ] as const
 
 function FocusSessionIcon({ className }: { className?: string }) {
@@ -70,7 +69,7 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, ac
   })
 
   return (
-    <div className="flex h-screen min-h-[210px] min-w-[960px] items-stretch gap-4 bg-background p-4">
+    <div className="flex h-screen min-h-[210px] min-w-[1160px] items-stretch gap-4 bg-background p-4">
       <section className="flex min-w-0 flex-1 flex-col justify-between rounded-xl border border-border bg-card p-5">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -111,7 +110,18 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, ac
         </div>
       </section>
 
-      <nav className="grid w-12 shrink-0 grid-rows-4 overflow-hidden rounded-xl border border-border bg-card" aria-label="창모드 기능">
+      <section aria-label="작업 시간 측정" className="relative flex h-full w-52 shrink-0 items-center justify-center rounded-xl border border-border bg-card p-4">
+        <div className="absolute top-4 right-4 left-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-medium text-muted-foreground">작업 시간 측정</p>
+            <RecordStatus working={isLive} />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">현재 시간 · {currentTimeLabel}</p>
+        </div>
+        <FlipDuration seconds={currentSeconds} />
+      </section>
+
+      <nav className="grid w-12 shrink-0 grid-rows-3 overflow-hidden rounded-xl border border-border bg-card" aria-label="창모드 기능">
         {MODE_ITEMS.map(({ mode, label, shortcut, icon: Icon }) => (
           <button
             key={mode}
@@ -132,15 +142,6 @@ export function WindowDay({ date, hours, currentHour, currentSeconds, isLive, ac
       </nav>
 
       <aside className="relative aspect-square h-full max-h-56 shrink-0 self-center rounded-xl border border-border bg-card p-4">
-        {activeMode === "tracking" && (
-          <div className="flex h-full items-center justify-center">
-            <div className="absolute top-5 right-5 left-5 flex items-center justify-between gap-2">
-              <p className="text-xs font-medium text-muted-foreground">현재 시간 · {currentTimeLabel}</p>
-              <RecordStatus working={isLive} />
-            </div>
-            <FlipDuration seconds={currentSeconds} />
-          </div>
-        )}
         {activeMode === "pomodoro" && (
           <PomodoroDial
             remaining={pomodoro.remaining}

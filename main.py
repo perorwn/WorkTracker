@@ -85,8 +85,8 @@ live_state = {
     "hour": 0,
     "seconds": 0,
     "hours": [0] * 24,
-    "mode": "tracking",
-    "hotkeys": [False] * 4,
+    "mode": "pomodoro",
+    "hotkeys": [False] * 3,
     "pomodoro": {
         "duration": pomodoro_duration_seconds,
         "remaining": pomodoro_remaining_seconds,
@@ -112,7 +112,7 @@ live_state = {
     "theme": database.get_setting("window_theme", "light"),
 }
 
-WINDOW_MODES = ("tracking", "pomodoro", "timer", "stopwatch")
+WINDOW_MODES = ("pomodoro", "timer", "stopwatch")
 
 
 # ========================================
@@ -511,7 +511,7 @@ def run_global_hotkeys():
     first_function_key = 0x70  # F1
 
     registrations = []
-    for index in range(4):
+    for index in range(len(WINDOW_MODES)):
         registered = bool(user32.RegisterHotKey(
             None,
             hotkey_base_id + index,

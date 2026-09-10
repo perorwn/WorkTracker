@@ -20,9 +20,9 @@ WINDOW_URL = os.environ.get(
 )
 EDGE_PROFILE_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "WorkTracker" / "EdgeProfile"
 MUTEX_NAME = "WorkTracker_NativeWindow_SingleInstance"
-DEFAULT_WIDTH = 1000
+DEFAULT_WIDTH = 1200
 DEFAULT_HEIGHT = 260
-MIN_WIDTH = 960
+MIN_WIDTH = 1160
 MIN_HEIGHT = 210
 
 user32 = ctypes.windll.user32
